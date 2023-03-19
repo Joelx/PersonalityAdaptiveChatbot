@@ -24,6 +24,9 @@ from langchain.chat_models import ChatOpenAI
 #from langchain.callbacks import get_openai_callback
 from langchain.callbacks.base import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+import os
+import urllib.request
+
 
 class ConversationHistoryRetreiver(BaseComponent):    
     outgoing_edges = 1
@@ -84,12 +87,18 @@ class TfidfVectorizerNode(BaseComponent):
     
 class FasttextVectorizerNode(BaseComponent):    
     outgoing_edges = 1
-    
+   
     def __init__(self, model_path: str = "models/embeddings/wiki.de.vec.magnitude", embedding_dim: int = 300):
         self.embedding_dim = embedding_dim
         self.model_path = model_path
+        self.model_url = "https://thnuernbergde-my.sharepoint.com/:u:/g/personal/schlotthauerjo71188_th-nuernberg_de/EQAqEKhmEa1PuCXPeRN1lZ8BjR9_FCUVgGPLHTdtP8eOWw?e=GhGcnz&download=1"
         try:
-            self.model = Magnitude(model_path)
+            # Check if the model file exists in the current directory
+            if not os.path.exists(self.model_path):
+                print(f'{self.model_path} not found, downloading from {self.model_url}...')
+                urllib.request.urlretrieve(self.model_url, self.model_path)
+                print('Download complete!')
+            self.model = Magnitude(self.model_path)
         except Exception as e:
             print(f"Error loading vectorizer: {e}")
             self.model = None        

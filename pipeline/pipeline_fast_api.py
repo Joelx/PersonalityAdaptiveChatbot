@@ -2,6 +2,8 @@ import json
 import os
 import sys
 
+from pydantic import BaseModel
+
 # Set the virtual environment path
 venv_path = os.path.expanduser("C:/Users/Joel/.local/pipx/venvs/rasa")
 sys.path.insert(0, venv_path)
@@ -181,13 +183,14 @@ async def fetch_rasa_api_conversation(
                     conversation.append({"event": conversation_type, "message": event["text"]})    
     return conversation
 
+
 # define a FastAPI endpoint for a Haystack query
-@app.get("/query")
-async def run(conversation_id: str):
+@app.post("/query")
+async def run(queryParams: Dict):
     nest_asyncio.apply()
     loop = asyncio.get_event_loop()
     conversation_history = loop.run_until_complete(
-            fetch_rasa_api_conversation(conversation_id=conversation_id)
+            fetch_rasa_api_conversation(conversation_id=queryParams['conversation_id'])
         )
     print(conversation_history)
     res = big_five_pipeline.run(query=conversation_history)
