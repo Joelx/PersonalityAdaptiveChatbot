@@ -206,8 +206,8 @@ def featurization_pymagnitude_xlmr_sentiment(train_df, test_df, embedding_type):
         #with open("big5_tfidf_vectorizer.pkl", "wb") as f:
          #   pickle.dump(tfidf, f)
         
-        #vectorizer_file = 'idf_vectorizer2.joblib'
-        #joblib.dump(tfidf, vectorizer_file)
+        vectorizer_file = 'idf_vectorizer1.2.2.joblib'
+        joblib.dump(tfidf, vectorizer_file)
 
         start_time = time.time()
         train_glove = tfidf_w2v(train_df, idf_dict, glove)
@@ -217,8 +217,8 @@ def featurization_pymagnitude_xlmr_sentiment(train_df, test_df, embedding_type):
         normalizer_glove = MinMaxScaler()
         train_glove = normalizer_glove.fit_transform(train_glove)
 
-        #embedding_normalizer_file = 'embedding_normalizer2.joblib'
-        #joblib.dump(normalizer_glove, embedding_normalizer_file)
+        embedding_normalizer_file = 'embedding_normalizer1.2.2.joblib'
+        joblib.dump(normalizer_glove, embedding_normalizer_file)
 
         test_glove = normalizer_glove.transform(test_glove)
         print("--- Normalized-features:")
@@ -240,8 +240,8 @@ def featurization_pymagnitude_xlmr_sentiment(train_df, test_df, embedding_type):
     normalizer = MinMaxScaler()
     train_features = normalizer.fit_transform(train_features)
     
-    #feature_normalizer_file = 'feature_normalizer2.joblib'
-    #joblib.dump(normalizer, feature_normalizer_file)
+    feature_normalizer_file = 'feature_normalizer1.2.2.joblib'
+    joblib.dump(normalizer, feature_normalizer_file)
     
     #with open("feature_normalizer.pkl", "wb") as f:
     #    pickle.dump(normalizer, f)
