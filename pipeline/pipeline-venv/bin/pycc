@@ -1,3 +1,0 @@
-#!/home/PersonalityAdaptiveChatbot/pipeline/pipeline-venv/bin/python3.8
-from numba.pycc import main
-main()
