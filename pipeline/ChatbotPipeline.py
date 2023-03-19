@@ -28,7 +28,7 @@ from langchain.callbacks.base import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 import os
 import urllib.request
-
+import shutil
 
 class ConversationHistoryRetreiver(BaseComponent):    
     outgoing_edges = 1
@@ -50,11 +50,11 @@ class ConversationHistoryRetreiver(BaseComponent):
 class TfidfVectorizerNode(BaseComponent):    
     outgoing_edges = 1
     
-    def __init__(self, model_path = "models/vectorizers/idf_vectorizer2.joblib"):
+    def __init__(self, model_path = "models/vectorizers/idf_vectorizer1.2.2.joblib"):
         self.model_path = model_path
         try:
             self.vectorizer = joblib.load(model_path)
-            print(f"The model {self.model_path} was pickled using sklearn version {self.vectorizer.__getstate__()['_sklearn_version']}")
+            #print(f"The model {self.model_path} was pickled using sklearn version {self.vectorizer.__getstate__()['_sklearn_version']}")
         except Exception as e:
             print(f"Error loading vectorizer: {e}")
             self.vectorizer = None
@@ -93,12 +93,20 @@ class FasttextVectorizerNode(BaseComponent):
     def __init__(self, model_path: str = "models/embeddings/wiki.de.vec.magnitude", embedding_dim: int = 300):
         self.embedding_dim = embedding_dim
         self.model_path = model_path
-        self.model_url = "https://thnuernbergde-my.sharepoint.com/:f:/g/personal/schlotthauerjo71188_th-nuernberg_de/EmORkOX8BaRBvbMFJsKoUkYByr9vJYW5dytIl9Lfa5mu9g?e=8JJVAv&download=1"
+        self.model_url = "https://thnuernbergde-my.sharepoint.com/:u:/g/personal/schlotthauerjo71188_th-nuernberg_de/EQAqEKhmEa1PuCXPeRN1lZ8BjR9_FCUVgGPLHTdtP8eOWw?e=GhGcnz&download=1"
         try:
             # Check if the model file exists in the current directory
             if not os.path.exists(self.model_path):
                 print(f'{self.model_path} not found, downloading from {self.model_url}...')
-                urllib.request.urlretrieve(self.model_url, self.model_path)
+                user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
+                headers = {"User-Agent": user_agent}
+                try:
+                    with urllib.request.urlopen(urllib.request.Request(self.model_url, headers=headers)) as response, open(self.model_path, "wb") as f:
+                        shutil.copyfileobj(response, f)
+                except urllib.error.HTTPError as e:
+                    print(f"HTTP Error {e.code}: {e.reason}")
+                except urllib.error.URLError as e:
+                    print(f"URL Error: {e.reason}")
                 print('Download complete!')
             self.model = Magnitude(self.model_path)
         except Exception as e:
@@ -123,12 +131,12 @@ class FasttextVectorizerNode(BaseComponent):
 class NormalizerNode(BaseComponent):    
     outgoing_edges = 1
     
-    def __init__(self, model_path: str = "models/normalizers/embedding_normalizer2.joblib", input="embeddings"):
+    def __init__(self, model_path: str = "models/normalizers/embedding_normalizer1.2.2.joblib", input="embeddings"):
         self.model_path = model_path
         self.input = input
         try:
             self.normalizer = joblib.load(model_path)
-            print(f"The model {self.model_path} was pickled using sklearn version {self.normalizer.__getstate__()['_sklearn_version']}")
+            #print(f"The model {self.model_path} was pickled using sklearn version {self.normalizer.__getstate__()['_sklearn_version']}")
         except Exception as e:
             print(f"Error loading vectorizer: {e}")
             self.normalizer = None
@@ -359,7 +367,7 @@ class BigFiveClassifierNode(BaseComponent):
         for dimension, model_path in self.model_paths.items():
             try:
                 self.models[dimension] = joblib.load(model_path)
-                print(f"The model {model_path} was pickled using sklearn version {self.models[dimension].__getstate__()['_sklearn_version']}")
+                #print(f"The model {model_path} was pickled using sklearn version {self.models[dimension].__getstate__()['_sklearn_version']}")
             except Exception as e:
                 print(f"Error loading model: {e}")
                 self.models = None
