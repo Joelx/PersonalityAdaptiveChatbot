@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Text, Tuple
 from haystack import BaseComponent
 from haystack.schema import Document
 from haystack.document_stores.base import BaseDocumentStore
@@ -21,27 +21,26 @@ from langchain.prompts import (
 )
 from langchain import PromptTemplate, LLMChain
 from langchain.chat_models import ChatOpenAI
+#from langchain.callbacks import get_openai_callback
+from langchain.callbacks.base import CallbackManager
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
 class ConversationHistoryRetreiver(BaseComponent):    
     outgoing_edges = 1
-    
-    def __init__(self, document_store: BaseDocumentStore):
-        self.document_store = document_store
         
-    def _get_conversation_history(self):
-        documents = self.document_store.get_all_documents()
-        text = ''.join([document.content for document in documents])
-        return text
+    def _parse_user_conversation_history(self, conversation_history) -> Text:
+        user_text = ' '.join([event.get('message', '') for event in conversation_history if event.get('event') == 'user'])
+        return user_text
     
-    def run(self, query: str) -> Dict[str, Document]:
-        #documents = self.document_store.get_all_documents()
-        output={"conversation_history": self._get_conversation_history()}
+    def run(self, query: List[Dict[Text, Text]]) -> Dict[Text, Text]:
+        print("--------- Query ---------")
+        print(query)
+        user_conversation_history = self._parse_user_conversation_history(query)
+        output={"conversation_history": user_conversation_history}
         return output, "output_1"
     
-    def run_batch(self, queries: List[str]) -> Dict[str, Document]:
-        #documents = self.document_store.get_all_documents()
-        output={"conversation_history": self._get_conversation_history()}
-        return output, "output_1"   
+    def run_batch(self, queries: List[Text]) -> Dict[str, Document]:
+        pass
 
 class TfidfVectorizerNode(BaseComponent):    
     outgoing_edges = 1
@@ -55,7 +54,7 @@ class TfidfVectorizerNode(BaseComponent):
             print(f"Error loading vectorizer: {e}")
             self.vectorizer = None
     
-    def _tfidf_embeddings(self, text: str) -> Dict[str, float]:
+    def _tfidf_embeddings(self) -> Dict[Text, float]:
         try:
             # transform production data using the loaded vectorizer
             # tfidf_matrix = self.vectorizer.transform(np.array([text]))
@@ -65,15 +64,15 @@ class TfidfVectorizerNode(BaseComponent):
             print(f"Error loading vectorizer: {e}")
             return {}        
     
-    def run(self, conversation_history: str) -> Dict[str, Document]:
-        idf_embeddings = self._tfidf_embeddings(conversation_history)
+    def run(self, conversation_history: Text) -> Dict[Text, Document]:
+        idf_embeddings = self._tfidf_embeddings()
         output={
             "conversation_history": conversation_history,
             "idf_embeddings": idf_embeddings
         }
         return output, "output_1"
 
-    def run_batch(self, conversation_history: List[str]) -> Dict[str, List]:
+    def run_batch(self, conversation_history: List[Text]) -> Dict[str, List]:
         conversations = {}
         #idf_embeddings = {}
         for i, conversation in enumerate(conversation_history):
@@ -95,19 +94,19 @@ class FasttextVectorizerNode(BaseComponent):
             print(f"Error loading vectorizer: {e}")
             self.model = None        
     
-    def _tfidf_w2v(self, text: str, idf_dict: Dict[str, Dict[str, float]]) -> np.array(List[List[float]]):
+    def _tfidf_w2v(self, text: Text, idf_dict: Dict[Text, Dict[Text, float]]) -> np.array(List[List[float]]):
         vectors = []
         w2v_vectors = self.model.query(word_tokenize(text))
         weights = [idf_dict.get(word, 1) for word in word_tokenize(text)]
         vectors.append(np.average(w2v_vectors, axis = 0, weights = weights))
         return np.array(vectors)
 
-    def run(self, conversation_history: str, idf_embeddings: Dict[str, Dict[str, float]]) -> Dict[str, np.ndarray]:
+    def run(self, conversation_history: Text, idf_embeddings: Dict[Text, Dict[str, float]]) -> Dict[str, np.ndarray]:
         vectors = self._tfidf_w2v(conversation_history, idf_embeddings)
         output={"vectors": vectors}
         return output, "output_1"    
     
-    def run_batch(self, conversation_history: str, idf_embeddings: Dict[str, Dict[str, float]]) -> Dict[str, np.ndarray]:
+    def run_batch(self, conversation_history: Text, idf_embeddings: Dict[str, Dict[str, float]]) -> Dict[str, np.ndarray]:
         pass
 
 class NormalizerNode(BaseComponent):    
@@ -164,7 +163,7 @@ class BigFiveFeaturizer(BaseComponent):
             new_text.append(t)
         return " ".join(new_text)
         
-    def _sentiment_analysis(self, text: str):  
+    def _sentiment_analysis(self, text: Text):  
         text = self._preprocess(text)
         encoded_input = self.tokenizer(text, return_tensors='pt')
         output = self.model(**encoded_input)
@@ -249,12 +248,12 @@ class BigFiveFeaturizer(BaseComponent):
             text_features))
         return features
     
-    def run(self, conversation_history: str) -> np.hstack:
+    def run(self, conversation_history: Text) -> np.hstack:
         vectors= self._featurize(conversation_history)
         output={"vectors": vectors}
         return output, "output_1"
     
-    def run_batch(self, conversation_history: str) -> Dict[str, Document]:
+    def run_batch(self, conversation_history: Text) -> Dict[str, Document]:
         pass
 
 class ConcatenationNode(BaseComponent):    
@@ -400,11 +399,11 @@ Cleo gets the detected Big Five personality traits of the current user dynamical
 Cleo gets the current Big Five personality traits in the following comma separated format: 'neuroticism: [value], extraversion: [value], openness: [value], agreeableness: [value], conscientiousness: [value]' 
 Each trait has its own [value]. If [value] is [1], the respective trait is considered to be pronounced in the user. If it's [0] it is not.
 
+Overall, Assistant is called 'Cleo' and is a very friendly and knowledgable conversational partner that tries to help people by adapting to their specific needs.
+Cleo is primarily talking in German and refers users by the salutation 'du'. It's main objective is to adapt to the needs of the user via their Big Five personality traits.
+
 Current Big 5 Personality traits: 
 {big_five}
-
-Overall, Assistant is called 'Cleo' and is a very friendly and knowledgable conversational partner that tries to help people by adapting to their specific needs.
-Cleo is primarily talking in German and refers users by the salutation 'du'
 
 Current Conversation:
 {history}
@@ -414,8 +413,24 @@ Cleo:"""
         system_message_prompt = SystemMessagePromptTemplate.from_template(self.template)
         self.chat_prompt = ChatPromptTemplate.from_messages([system_message_prompt])
 
-        self.llm = ChatOpenAI(temperature=0)
+        self.llm = ChatOpenAI(temperature=0, streaming=True,
+                              callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]))
+        self.MAX_TOKEN_SIZE = 4096
         self.conversation = LLMChain(llm=self.llm, prompt=self.chat_prompt, verbose=True)
+
+    
+    def _count_tokens(self, text: Text) -> int:
+        tokens = re.findall(r'\S+|\n', text)
+        print("------ Token Size of current Prompt ------")
+        token_count = len(tokens) - 3 # -3 for our input variables in the system template
+        print(token_count)
+        return token_count
+
+    def _parse_full_conversation(self, conversation: List[Dict[str, str]]) -> Tuple[str, str]:
+        current_user_input = [event['message'] for event in reversed(conversation) if event.get('event') == 'user'][0]
+        conversation_text = '\n'.join([f"{event['event'].title()}: {event['message']}" for event in conversation])
+        conversation_text = conversation_text.rsplit('\nUser:', 1)[0]
+        return conversation_text, current_user_input
 
     def _parse_big_five_precictions(self, predictions):
         big_five_string = ", ".join([f"{dimension}: {prediction}" for dimension, prediction in predictions.items()])
@@ -426,8 +441,14 @@ Cleo:"""
         print("---------- INPUTS ------------")
         print(inputs)      
         big_five_string = self._parse_big_five_precictions(inputs[1]['predictions']['classes'])
-        test_history="User: Hallo! Ich heiße Thomas\nCleo: Hallo Thomas! Wie geht es dir?"
-        res = self.conversation.run(big_five=big_five_string, history=test_history, input=inputs[0]['query'])
+        conversation_history, current_user_input = self._parse_full_conversation(inputs[0]['query'])
+        print("---------- Full Conversation history ------------")
+        print(conversation_history) 
+        res = self.conversation.run(big_five=big_five_string, history=conversation_history, input=current_user_input)    
+        self._count_tokens(" ".join([self.template, big_five_string, conversation_history, res]))
+        print("------ LLM Chain Result -----") 
+        print(res)  
+        
         output = {'response': res}
         return output, "output_1"
     
