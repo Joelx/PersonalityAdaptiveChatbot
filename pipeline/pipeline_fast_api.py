@@ -182,12 +182,12 @@ async def fetch_rasa_api_conversation(
     return conversation
 
 # define a FastAPI endpoint for a Haystack query
-@app.get("/query/{input}")
-async def run(input: str):
+@app.get("/query")
+async def run(conversation_id: str):
     nest_asyncio.apply()
     loop = asyncio.get_event_loop()
     conversation_history = loop.run_until_complete(
-            fetch_rasa_api_conversation("2e14fc1bf1f64800b53a3244946e4905")
+            fetch_rasa_api_conversation(conversation_id=conversation_id)
         )
     print(conversation_history)
     res = big_five_pipeline.run(query=conversation_history)
