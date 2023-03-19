@@ -8,8 +8,7 @@ from pydantic import BaseModel
 venv_path = os.path.expanduser("C:/Users/Joel/.local/pipx/venvs/rasa")
 sys.path.insert(0, venv_path)
 
-import asyncio
-import nest_asyncio
+
 from ChatbotPipeline import *
 import os
 from fastapi import FastAPI
@@ -17,16 +16,12 @@ from haystack import Pipeline
 from haystack.document_stores import InMemoryDocumentStore
 import config
 
-from urllib import parse
-from aiohttp import ClientSession
-
 from typing import Text, Optional, Any
 
 os.environ["OPENAI_API_KEY"] = config.OPENAI_API_KEY
 
 # create an instance of the FastAPI app
 app = FastAPI()
-#nest_asyncio.apply()
 
 sf_model_paths = {
     "neuroticism": "models/feature_selectors/neuroticism_sf_selector2.joblib",
@@ -74,120 +69,16 @@ response_generator = BigFiveResponseGenerator()
 big_five_pipeline.add_node(component=response_generator, name="BigFiveResponseGenerator", inputs=["BigFiveClassifierNode.output_1", "Query"])
 
 
-async def _login(username: Text, password: Text, url: Text) -> Text:
-    """Log into Rasa X.
-    Args:
-        username: Username.
-        password: Password of the user.
-        url: URL of the Rasa X instance which should logged into.
-    Returns:
-        The JWT access token of the user.
-    """
-    url = parse.urljoin(url, "api/auth")
-    payload = {"username": username, "password": password}
-    async with ClientSession() as session:
-        response = await session.post(url, json=payload)
-        assert response.status == 200
-
-        response_body = await response.json()
-        access_token = response_body["access_token"]
-        assert access_token
-        return access_token
-    
-def _client_session(access_token: Text) -> ClientSession:
-    headers = {"Authorization": f"Bearer {access_token}"}
-    return ClientSession(headers=headers)
-
-def story_to_yaml(story, conversation_id: Text) -> Text:
-    """
-    Transform a story to YAML.
-    Args:
-        story: A story.
-        conversation_id: An ID of the conversation that was fetched.
-    Returns:
-        A YAML containing all the story steps.
-    """
-    print(story)
-    return story
-
-    #yaml_writer = YAMLStoryWriter()
-    #return yaml_writer.dumps(story.story_steps, is_test_story=True, is_appendable=True)
-
-async def _fetch_full_conversation(
-    session: ClientSession, conversation_id: Text
-) -> Optional[Dict[Text, Any]]:
-    """
-    Gets a full conversation from Rasa X API.
-    Args:
-        session: An initialized client session.
-        conversation_id: An ID of the conversation to fetch.
-    Returns:
-        A full conversation for a specified `conversation_id`.
-    """
-    url = parse.urljoin(config.RASA_X_URL, "api/conversations/" + conversation_id)
-    response = await session.get(url)
-    print("------ fetch conv response -----")
-    print(response)
-    if response.status != 200:
-        #rasa.shared.utils.cli.print_warning(f"Unable to call GET {url}.")
-        return None
-    return await response.json()
-
-async def _fetch_conversations(session: ClientSession) -> List[Dict[Text, Any]]:
-    """Gets conversations from Rasa X API.
-    Args:
-        session: An initialized client session.
-    Returns:
-        A list of all conversations.
-    """
-    url = parse.urljoin(config.RASA_X_URL, "api/conversations")
-    response = await session.get(url)
-    if response.status != 200:
-        #rasa.shared.utils.cli.print_error(f"Unable to call GET {url}.")
-        return []
-    return await response.json()
-
-async def fetch_rasa_api_conversation(
-    conversation_id: Text
-) -> Text:
-    """Fetch story from running Rasa X instance by conversation ID.
-    Args:
-        conversation_id: An ID of the conversation to fetch.
-    Returns:
-        Extracted story in json format.
-    """
-    access_token = await _login(config.RASA_X_USERNAME, config.RASA_X_PASSWORD, config.RASA_X_URL)
-    conversation = []
-    async with _client_session(access_token) as session:
-        conversation_data = await _fetch_full_conversation(session, conversation_id)
-        print(conversation_data)
-        if conversation_data:
-            conversation_map = {"user": "user", "bot": "cleo"}
-            for event in conversation_data['events']:
-                conversation_type = conversation_map.get(event["event"])
-                if conversation_type:
-                    conversation.append({"event": conversation_type, "message": event["text"]})    
-    return conversation
-
 
 # define a FastAPI endpoint for a Haystack query
 @app.post("/query")
 async def run(queryParams: Dict):
-    #loop = asyncio.get_event_loop()
-    #conversation_history = loop.run_until_complete(
-    #        fetch_rasa_api_conversation(conversation_id=queryParams['conversation_id'])
-    #   )
-    conversation_history = await fetch_rasa_api_conversation(conversation_id="728dd83d242e4063b5f35bb1649902fe")
-    print("--------- Conversation History ----------")
-    print(conversation_history)
+    conversation_history = queryParams['conversation_history']
+
     if conversation_history:
+        print("--------- Conversation History ----------")
         print(conversation_history)
-        """
-        test_history = [
-            {"event": "user", "message": "hallo"},
-            {"event": "cleo", "message": "Hallo! Wie kann ich dir helfen?"}
-        ]
-        """
+
         res = big_five_pipeline.run(query=conversation_history)
         response = {"response": res['response']}
         print("----------------- RES --------------------")

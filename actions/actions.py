@@ -12,8 +12,8 @@ from typing import Any, Text, Dict, List
 from rasa_sdk import Action, Tracker
 from rasa_sdk.executor import CollectingDispatcher
 import requests
-#
-#
+
+
 class ActionHaystack(Action):
 
     def name(self) -> Text:
@@ -23,13 +23,13 @@ class ActionHaystack(Action):
             tracker: Tracker,
             domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
 
-        print("---- Current History ----")
-        print(tracker.events)
 
+        conversation = self._parse_rasa_events_to_conversation(tracker.events)
         url = "http://localhost:8001/query"
-        #payload = {"query": str(tracker.latest_message["text"])}
-        payload = {"conversation_id": str(tracker.sender_id)}
+
+        payload = {"conversation_history": conversation}
         print(payload)
+
         headers = {
             'Content-Type': 'application/json'
         }
@@ -44,3 +44,19 @@ class ActionHaystack(Action):
         dispatcher.utter_message(text=answer)
 
         return []
+    
+    def _parse_rasa_events_to_conversation(events: Dict) -> Text:
+        """Fetch story from running Rasa X instance by conversation ID.
+        Args:
+            conversation_id: An ID of the conversation to fetch.
+        Returns:
+            Extracted story in json format.
+        """
+        conversation = []
+        if events:
+            conversation_map = {"user": "user", "bot": "cleo"}
+            for event in events['events']:
+                conversation_type = conversation_map.get(event["event"])
+                if conversation_type:
+                    conversation.append({"event": conversation_type, "message": event["text"]})    
+        return conversation
