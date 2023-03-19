@@ -93,21 +93,16 @@ class FasttextVectorizerNode(BaseComponent):
     def __init__(self, model_path: str = "models/embeddings/wiki.de.vec.magnitude", embedding_dim: int = 300):
         self.embedding_dim = embedding_dim
         self.model_path = model_path
-        self.model_url = "https://thnuernbergde-my.sharepoint.com/:u:/g/personal/schlotthauerjo71188_th-nuernberg_de/EQAqEKhmEa1PuCXPeRN1lZ8BjR9_FCUVgGPLHTdtP8eOWw?e=GhGcnz&download=1"
+        self.model_url = "https://drive.google.com/uc?id=10ILYDkEFnlrExQwo7_iu2sL2le43Xlcp&export=download&confirm=t&uuid=92d36780-86fc-4fae-b03c-f05653d01849"
         try:
             # Check if the model file exists in the current directory
             if not os.path.exists(self.model_path):
-                print(f'{self.model_path} not found, downloading from {self.model_url}...')
-                user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
-                headers = {"User-Agent": user_agent}
-                try:
-                    with urllib.request.urlopen(urllib.request.Request(self.model_url, headers=headers)) as response, open(self.model_path, "wb") as f:
-                        shutil.copyfileobj(response, f)
-                except urllib.error.HTTPError as e:
-                    print(f"HTTP Error {e.code}: {e.reason}")
-                except urllib.error.URLError as e:
-                    print(f"URL Error: {e.reason}")
+                print(f'{self.model_path} not found, downloading from {self.model_url}! Its 4 GB, so this may take a while. Maybe go and grab a coffee ;) ...')
+                urllib.request.urlretrieve(self.model_url, self.model_path)
                 print('Download complete!')
+            else:
+                print(f'{self.model_path} already exists')
+
             self.model = Magnitude(self.model_path)
         except Exception as e:
             print(f"Error loading vectorizer: {e}")

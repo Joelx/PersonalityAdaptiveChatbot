@@ -26,6 +26,7 @@ os.environ["OPENAI_API_KEY"] = config.OPENAI_API_KEY
 
 # create an instance of the FastAPI app
 app = FastAPI()
+#nest_asyncio.apply()
 
 sf_model_paths = {
     "neuroticism": "models/feature_selectors/neuroticism_sf_selector2.joblib",
@@ -61,7 +62,7 @@ embedding_normalizer = NormalizerNode(input="embeddings")
 big_five_pipeline.add_node(component=embedding_normalizer, name="EmbeddingNormalizerNode", inputs=["FasttextVectorizerNode.output_1"])  
 featurizer = BigFiveFeaturizer()
 big_five_pipeline.add_node(component=featurizer, name="BigFiveFeaturizer", inputs=["ConversationHistoryRetreiver.output_1"]) 
-feature_normalizer = NormalizerNode(model_path="models/normalizers/feature_normalizer2.joblib", input="features")
+feature_normalizer = NormalizerNode(model_path="models/normalizers/feature_normalizer1.2.2.joblib", input="features")
 big_five_pipeline.add_node(component=feature_normalizer, name="FeatureNormalizerNode", inputs=["BigFiveFeaturizer.output_1"])
 concatenation_node = ConcatenationNode()
 big_five_pipeline.add_node(component=concatenation_node, name="ConcatenationNode", inputs=["FeatureNormalizerNode.output_1", "EmbeddingNormalizerNode.output_1"])
@@ -125,6 +126,8 @@ async def _fetch_full_conversation(
     """
     url = parse.urljoin(config.RASA_X_URL, "api/conversations/" + conversation_id)
     response = await session.get(url)
+    print("------ fetch conv response -----")
+    print(response)
     if response.status != 200:
         #rasa.shared.utils.cli.print_warning(f"Unable to call GET {url}.")
         return None
@@ -157,7 +160,7 @@ async def fetch_rasa_api_conversation(
     conversation = []
     async with _client_session(access_token) as session:
         conversation_data = await _fetch_full_conversation(session, conversation_id)
-        
+        print(conversation_data)
         if conversation_data:
             conversation_map = {"user": "user", "bot": "cleo"}
             for event in conversation_data['events']:
@@ -170,15 +173,25 @@ async def fetch_rasa_api_conversation(
 # define a FastAPI endpoint for a Haystack query
 @app.post("/query")
 async def run(queryParams: Dict):
-    nest_asyncio.apply()
-    loop = asyncio.get_event_loop()
-    conversation_history = loop.run_until_complete(
-            fetch_rasa_api_conversation(conversation_id=queryParams['conversation_id'])
-        )
+    #loop = asyncio.get_event_loop()
+    #conversation_history = loop.run_until_complete(
+    #        fetch_rasa_api_conversation(conversation_id=queryParams['conversation_id'])
+    #   )
+    conversation_history = await fetch_rasa_api_conversation(conversation_id="728dd83d242e4063b5f35bb1649902fe")
+    print("--------- Conversation History ----------")
     print(conversation_history)
-    res = big_five_pipeline.run(query=conversation_history)
-    response = {"response": res['response']}
-    print("----------------- RES --------------------")
-    print(res)
-    #big_five_pipeline.draw()
+    if conversation_history:
+        print(conversation_history)
+        """
+        test_history = [
+            {"event": "user", "message": "hallo"},
+            {"event": "cleo", "message": "Hallo! Wie kann ich dir helfen?"}
+        ]
+        """
+        res = big_five_pipeline.run(query=conversation_history)
+        response = {"response": res['response']}
+        print("----------------- RES --------------------")
+        print(res)
+    else:
+        response = {"response": "Kann noch nichts generieren"}
     return response

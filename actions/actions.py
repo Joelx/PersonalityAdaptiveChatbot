@@ -23,6 +23,9 @@ class ActionHaystack(Action):
             tracker: Tracker,
             domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
 
+        print("---- Current History ----")
+        print(tracker.events)
+
         url = "http://localhost:8001/query"
         #payload = {"query": str(tracker.latest_message["text"])}
         payload = {"conversation_id": str(tracker.sender_id)}

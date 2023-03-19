@@ -209,6 +209,7 @@ lastmile_ai/learn/plots/
 .coveralls.yml
 .idea/
 .venv/
+pipeline-venv/
 .venv_tf/
 venv/
 venv_tf/
