@@ -211,7 +211,6 @@ lastmile_ai/learn/plots/
 .venv/
 .venv_tf/
 venv/
-pipeline-venv/
 venv_tf/
 .trial_results.db
 trial_results.db
