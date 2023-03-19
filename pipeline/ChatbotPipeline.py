@@ -93,7 +93,7 @@ class FasttextVectorizerNode(BaseComponent):
     def __init__(self, model_path: str = "models/embeddings/wiki.de.vec.magnitude", embedding_dim: int = 300):
         self.embedding_dim = embedding_dim
         self.model_path = model_path
-        self.model_url = "https://thnuernbergde-my.sharepoint.com/:u:/g/personal/schlotthauerjo71188_th-nuernberg_de/EQAqEKhmEa1PuCXPeRN1lZ8BjR9_FCUVgGPLHTdtP8eOWw?e=GhGcnz&download=1"
+        self.model_url = "https://thnuernbergde-my.sharepoint.com/:f:/g/personal/schlotthauerjo71188_th-nuernberg_de/EmORkOX8BaRBvbMFJsKoUkYByr9vJYW5dytIl9Lfa5mu9g?e=8JJVAv&download=1"
         try:
             # Check if the model file exists in the current directory
             if not os.path.exists(self.model_path):
