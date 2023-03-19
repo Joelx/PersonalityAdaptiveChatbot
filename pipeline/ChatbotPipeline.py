@@ -5,6 +5,8 @@ from haystack.document_stores.base import BaseDocumentStore
 import numpy as np
 import joblib
 from pymagnitude import Magnitude
+import nltk
+nltk.download('punkt')
 from nltk import word_tokenize
 from transformers import AutoModelForSequenceClassification
 from transformers import AutoTokenizer, AutoConfig

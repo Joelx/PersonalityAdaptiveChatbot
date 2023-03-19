@@ -21,29 +21,12 @@ from urllib import parse
 from aiohttp import ClientSession
 
 from typing import Text, Optional, Any
-#import rasa.shared.utils.cli
-#from rasa.shared.core import events
-#from rasa.shared.core.training_data.structures import Story
-#from rasa.shared.core.training_data.story_writer.yaml_story_writer import (
-#    YAMLStoryWriter,
-#)
 
 os.environ["OPENAI_API_KEY"] = config.OPENAI_API_KEY
 
 # create an instance of the FastAPI app
 app = FastAPI()
 
-# Build in memory document store
-"""
-document_store = InMemoryDocumentStore()
-dicts = [
-    {
-        'content': 'Email von einer Kollegin. Gestern, gemeinsam mit Freunden beim Grillen. Aufstehen und beginnen zu arbeiten. Alles funktioniert und es macht Spaß. Veränderung des Verhaltens der Menschen durch die Pandemie. Aufgaben verteilen. lustig, ungezwungen',
-        'meta': {'name': 'chat_history'}
-    },
-]
-document_store.write_documents(dicts)
-"""
 sf_model_paths = {
     "neuroticism": "models/feature_selectors/neuroticism_sf_selector2.joblib",
     "extraversion": "models/feature_selectors/extraversion_sf_selector2.joblib",
