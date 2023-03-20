@@ -45,7 +45,7 @@ class ActionHaystack(Action):
 
         return []
     
-    def _parse_rasa_events_to_conversation(events: Dict) -> Text:
+    def _parse_rasa_events_to_conversation(self, events: Dict) -> Text:
         """Fetch story from running Rasa X instance by conversation ID.
         Args:
             conversation_id: An ID of the conversation to fetch.
@@ -55,7 +55,7 @@ class ActionHaystack(Action):
         conversation = []
         if events:
             conversation_map = {"user": "user", "bot": "cleo"}
-            for event in events['events']:
+            for event in events:
                 conversation_type = conversation_map.get(event["event"])
                 if conversation_type:
                     conversation.append({"event": conversation_type, "message": event["text"]})    
