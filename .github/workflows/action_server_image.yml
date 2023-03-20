@@ -2,7 +2,7 @@ on:
   push:
     branches:
     # Make sure to update to your correct branch
-      - master
+      - main
     paths:
     - 'actions/**'
 
