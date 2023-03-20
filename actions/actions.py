@@ -23,7 +23,6 @@ class ActionHaystack(Action):
             tracker: Tracker,
             domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
 
-
         conversation = self._parse_rasa_events_to_conversation(tracker.events)
         url = "http://localhost:8001/query"
 
