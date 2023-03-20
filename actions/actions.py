@@ -13,7 +13,6 @@ from rasa_sdk import Action, Tracker
 from rasa_sdk.executor import CollectingDispatcher
 import requests
 
-
 class ActionHaystack(Action):
 
     def name(self) -> Text:
@@ -39,7 +38,6 @@ class ActionHaystack(Action):
         else:
             answer = "Tut mir leid, ich habe gerade technische Probleme!"
 
-        print(answer)
         dispatcher.utter_message(text=answer)
 
         return []
