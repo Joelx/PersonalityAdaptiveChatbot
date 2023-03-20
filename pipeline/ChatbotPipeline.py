@@ -28,7 +28,8 @@ from langchain.callbacks.base import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 import os
 import urllib.request
-import shutil
+from haystack import Pipeline
+import config
 
 class ConversationHistoryRetreiver(BaseComponent):    
     outgoing_edges = 1
@@ -50,7 +51,7 @@ class ConversationHistoryRetreiver(BaseComponent):
 class TfidfVectorizerNode(BaseComponent):    
     outgoing_edges = 1
     
-    def __init__(self, model_path = "models/vectorizers/idf_vectorizer1.2.2.joblib"):
+    def __init__(self, model_path = config.MODEL_PATH + "vectorizers/idf_vectorizer1.2.2.joblib"):
         self.model_path = model_path
         try:
             self.vectorizer = joblib.load(model_path)
@@ -90,12 +91,13 @@ class TfidfVectorizerNode(BaseComponent):
 class FasttextVectorizerNode(BaseComponent):    
     outgoing_edges = 1
    
-    def __init__(self, model_path: str = "models/embeddings/wiki.de.vec.magnitude", embedding_dim: int = 300):
+    def __init__(self, model_path: str = config.MODEL_PATH + "embeddings/wiki.de.vec.magnitude", embedding_dim: int = 300):
         self.embedding_dim = embedding_dim
         self.model_path = model_path
         self.model_url = "https://drive.google.com/uc?id=10ILYDkEFnlrExQwo7_iu2sL2le43Xlcp&export=download&confirm=t&uuid=92d36780-86fc-4fae-b03c-f05653d01849"
         try:
             # Check if the model file exists in the current directory
+            print("Checking if Embeddings Model exists....")
             if not os.path.exists(self.model_path):
                 print(f'{self.model_path} not found, downloading from {self.model_url}! Its 4 GB, so this may take a while. Maybe go and grab a coffee ;) ...')
                 urllib.request.urlretrieve(self.model_url, self.model_path)
@@ -126,7 +128,7 @@ class FasttextVectorizerNode(BaseComponent):
 class NormalizerNode(BaseComponent):    
     outgoing_edges = 1
     
-    def __init__(self, model_path: str = "models/normalizers/embedding_normalizer1.2.2.joblib", input="embeddings"):
+    def __init__(self, model_path: str = config.MODEL_PATH + "normalizers/embedding_normalizer1.2.2.joblib", input="embeddings"):
         self.model_path = model_path
         self.input = input
         try:
@@ -166,8 +168,8 @@ class BigFiveFeaturizer(BaseComponent):
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name_or_path)
         self.config = AutoConfig.from_pretrained(self.model_name_or_path)
         self.model = AutoModelForSequenceClassification.from_pretrained(self.model_name_or_path)
-        self.model.save_pretrained(self.model_name_or_path)
-        self.tokenizer.save_pretrained(self.model_name_or_path)
+        self.model.save_pretrained(config.MODEL_PATH + self.model_name_or_path)
+        self.tokenizer.save_pretrained(config.MODEL_PATH + self.model_name_or_path)
         
     def _preprocess(self, text):
         new_text = []
@@ -468,3 +470,53 @@ Cleo:"""
     
     def run_batch(self, predictions: Dict[str, Dict[str, np.ndarray]]) -> Dict[str, np.ndarray]:
         pass
+
+def create_pipeline():
+    os.environ["OPENAI_API_KEY"] = config.OPENAI_API_KEY
+
+    sf_model_paths = {
+        "neuroticism": config.MODEL_PATH + "feature_selectors/neuroticism_sf_selector2.joblib",
+        "extraversion": config.MODEL_PATH + "feature_selectors/extraversion_sf_selector2.joblib",
+        "openness": config.MODEL_PATH + "feature_selectors/openness_sf_selector2.joblib",
+        "agreeableness": config.MODEL_PATH + "feature_selectors/agreeableness_sf_selector2.joblib",
+        "conscientiousness": config.MODEL_PATH + "feature_selectors/conscientiousness_sf_selector2.joblib"
+    }
+    cf_model_paths = {
+        "neuroticism": config.MODEL_PATH + "big_five_classifiers/neuroticism_classifier2.joblib",
+        "extraversion": config.MODEL_PATH + "big_five_classifiers/extraversion_classifier2.joblib",
+        "openness": config.MODEL_PATH + "big_five_classifiers/openness_classifier2.joblib",
+        "agreeableness": config.MODEL_PATH + "big_five_classifiers/agreeableness_classifier2.joblib",
+        "conscientiousness": config.MODEL_PATH + "big_five_classifiers/conscientiousness_classifier2.joblib"
+    }
+    cf_thresholds = {
+        "neuroticism": 0.578,
+        "extraversion": 0.478,
+        "openness": 0.178,
+        "agreeableness": 0.494,
+        "conscientiousness": 0.299
+    }
+
+
+    big_five_pipeline = Pipeline()
+    history_retreiver = ConversationHistoryRetreiver()
+    big_five_pipeline.add_node(component=history_retreiver, name="ConversationHistoryRetreiver", inputs=["Query"])
+    tfidf_embedding = TfidfVectorizerNode()
+    big_five_pipeline.add_node(component=tfidf_embedding, name="TfidfVectorizerNode", inputs=["ConversationHistoryRetreiver.output_1"])
+    fasttext_vectorizer = FasttextVectorizerNode()
+    big_five_pipeline.add_node(component=fasttext_vectorizer, name="FasttextVectorizerNode", inputs=["TfidfVectorizerNode.output_1"])     
+    embedding_normalizer = NormalizerNode(input="embeddings")
+    big_five_pipeline.add_node(component=embedding_normalizer, name="EmbeddingNormalizerNode", inputs=["FasttextVectorizerNode.output_1"])  
+    featurizer = BigFiveFeaturizer()
+    big_five_pipeline.add_node(component=featurizer, name="BigFiveFeaturizer", inputs=["ConversationHistoryRetreiver.output_1"]) 
+    feature_normalizer = NormalizerNode(model_path=config.MODEL_PATH + "normalizers/feature_normalizer1.2.2.joblib", input="features")
+    big_five_pipeline.add_node(component=feature_normalizer, name="FeatureNormalizerNode", inputs=["BigFiveFeaturizer.output_1"])
+    concatenation_node = ConcatenationNode()
+    big_five_pipeline.add_node(component=concatenation_node, name="ConcatenationNode", inputs=["FeatureNormalizerNode.output_1", "EmbeddingNormalizerNode.output_1"])
+    feature_selector = BigFiveFeatureSelectionNode(model_paths=sf_model_paths)
+    big_five_pipeline.add_node(component=feature_selector, name="BigFiveFeatureSelectionNode", inputs=["ConcatenationNode.output_1"])
+    big_five_classifier = BigFiveClassifierNode(model_paths=cf_model_paths, thresholds=cf_thresholds)
+    big_five_pipeline.add_node(component=big_five_classifier, name="BigFiveClassifierNode", inputs=["BigFiveFeatureSelectionNode.output_1"])
+    response_generator = BigFiveResponseGenerator()
+    big_five_pipeline.add_node(component=response_generator, name="BigFiveResponseGenerator", inputs=["BigFiveClassifierNode.output_1", "Query"])
+
+    return big_five_pipeline
