@@ -22,7 +22,7 @@ class ActionHaystack(Action):
             domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
 
         conversation = self._parse_rasa_events_to_conversation(tracker.events)
-        url = "http://localhost:8001/query"
+        url = "http://10.0.1.1:8001/query"
 
         payload = {"conversation_history": conversation}
         print(payload)
@@ -30,7 +30,14 @@ class ActionHaystack(Action):
         headers = {
             'Content-Type': 'application/json'
         }
-        response = requests.request("POST", url, headers=headers, json=payload).json()
+
+        response = []
+        try:
+            response = requests.request("POST", url, headers=headers, json=payload).json()
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            print ("Http Error:", err)
+        
 
         if response["response"]:
             answer = response["response"]
