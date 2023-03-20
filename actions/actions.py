@@ -56,4 +56,3 @@ class ActionHaystack(Action):
                 if conversation_type:
                     conversation.append({"event": conversation_type, "message": event["text"]})    
         return conversation
-
