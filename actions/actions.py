@@ -37,7 +37,6 @@ class ActionHaystack(Action):
         except requests.exceptions.HTTPError as err:
             print ("Http Error:", err)
         
-
         if response["response"]:
             answer = response["response"]
         else:
