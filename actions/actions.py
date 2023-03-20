@@ -34,7 +34,7 @@ class ActionHaystack(Action):
         response = []
         try:
             response = requests.request("POST", url, headers=headers, json=payload).json()
-            response.raise_for_status()
+            requests.raise_for_status()
         except requests.exceptions.HTTPError as err:
             print ("Http Error:", err)
         
