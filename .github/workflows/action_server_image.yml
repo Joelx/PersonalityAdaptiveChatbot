@@ -1,31 +1,31 @@
 on:
+  # Deploy a new image whenever new changes were pushed to the main branch
   push:
     branches:
-    # Make sure to update to your correct branch
       - main
-    paths:
-    - 'actions/**'
 
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
-    name: Build Action Server image and upgrade Rasa X deployment
+    name: Build Rasa Action Server image and upgrade Rasa X deployment
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
 
     - id: action_server
       name: Build an action server with custom actions
-      uses: RasaHQ/action-server-gha@main
-      # Full list of parameters: https://github.com/RasaHQ/action-server-gha/tree/master#input-arguments
+      uses: RasaHQ/rasa-action-server-gha@main
       with:
         docker_image_name: 'joes4/haystack-action-server'
         docker_registry_login: ${{ secrets.DOCKER_HUB_LOGIN }}
         docker_registry_password: ${{ secrets.DOCKER_HUB_PASSWORD }}
-        # More details about github context:
-        # https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#github-context
-        #
-        # github.sha - The commit SHA that triggered the workflow run
-        #docker_image_tag: ${{ github.sha }}
-        docker_image_tag: latest
-        requirements_file: 'actions/requirements.txt'
+        docker_image_tag: ${{ github.sha }}
+
+    - name: Upgrade Rasa X deployment
+      run: |
+        # More information: https://rasa.com/docs/rasa-x/installation-and-setup/install/helm-chart/
+
+        # Upgrade the helm release using output parameters from the `action_server` step
+        helm upgrade --install --reuse-values \
+          --set app.name=${{ steps.action_server.outputs.docker_image_name }} \
+          --set app.tag=${{ steps.action_server.outputs.docker_image_tag }} rasax-release rasa-x/rasa-x
