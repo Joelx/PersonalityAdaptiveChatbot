@@ -1,33 +1,9 @@
 version: "3.0"
 
 intents:
-  - greet
-  - goodbye
-  - affirm
-  - deny
-  - mood_great
-  - mood_unhappy
-  - bot_challenge
-
-responses:
-  utter_greet:
-  - text: "Hey! How are you?"
-
-  utter_cheer_up:
-  - text: "Here is something to cheer you up:"
-    image: "https://i.imgur.com/nGF1K8f.jpg"
-
-  utter_did_that_help:
-  - text: "Did that help you?"
-
-  utter_happy:
-  - text: "Great, carry on!"
-
-  utter_goodbye:
-  - text: "Bye"
-
-  utter_iamabot:
-  - text: "I am a bot, powered by Rasa."
+  - begin
+  - start_test
+  - start_conversation
 
 actions:
   - call_haystack
@@ -35,3 +11,864 @@ actions:
 session_config:
   session_expiration_time: 0
   carry_over_slots_to_new_session: true
+
+
+responses:
+  utter_greet:
+  - text: "Hallo 😊!"
+
+  utter_instructions:
+  - buttons:
+    - payload: /start_test
+      title: "Big Five Persönlichkeitstest durchführen"
+    - payload: /start_conversation
+      title: "Unterhaltung beginnen"
+    text: "Was möchtest du tun? Wenn du einen Big Five Persönlichkeitstest durchführst, werde ich mich an das Testergebnis halten, um mich deinen Bedürfnissen anzupassen.\nBeginnst du hingegen direkt mit der Unterhaltung, versuche ich deine Persönlichkeit automatisch über deinen Schreibstil festzustellen."
+
+  # NEO-FFI-30 TEST!
+  utter_ask_neu_item_6:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 3/30: Ich fühle mich anderen oft unterlegen.'
+  utter_ask_neu_item_11:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 8/30: Wenn ich unter starkem Stress stehe, fühle ich mich manchmal, als ob ich zusammenbräche.'
+  utter_ask_neu_item_21:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 12/30: Ich fühle mich oft angespannt und nervös.'
+  utter_ask_neu_item_26:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 16/30: Manchmal fühle ich mich völlig wertlos.'
+  utter_ask_neu_item_41:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 21/30: Zu häufig bin ich entmutigt und will aufgeben, wenn etwas schief geht.'
+  utter_ask_neu_item_51:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 26/30: Ich fühle mich oft hilflos und wünsche mir eine Person, die meine Probleme löst.'
+  utter_ask_ext_item_2:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 1/30: Ich habe gern viele Leute um mich herum.'
+  utter_ask_ext_item_7:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 4/30: Ich bin leicht zum Lachen zu bringen.'
+  utter_ask_ext_item_22:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 13/30: Ich bin gerne im Zentrum des Geschehens.'
+  utter_ask_ext_item_32:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 17/30: Ich habe oft das Gefühl, vor Energie überzuschäumen.'
+  utter_ask_ext_item_37:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 18/30: Ich bin ein fröhlicher, gutgelaunter Mensch.'
+  utter_ask_ext_item_52:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage: 27/30: Ich bin ein sehr aktiver Mensch.'
+  utter_ask_off_item_8:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 5/30: Ich finde philosophische Diskussionen langweilig.'
+  utter_ask_off_item_13:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 9/30: Mich begeistern die Motive, die ich in der Kunst und in der Natur finde.'
+  utter_ask_off_item_23:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 14/30: Poesie beeindruckt mich wenig oder gar nicht.'
+  utter_ask_off_item_43:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 22/30: Wenn ich Literatur lese oder ein Kunstwerk betrachte, empfinde ich manchmal ein Frösteln oder eine Welle der Begeisterung.'
+  utter_ask_off_item_48:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 23/30: Ich habe wenig Interesse, über die Natur des Universums oder die Lage der Menschheit zu spekulieren.'
+  utter_ask_off_item_58:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 29/30: Ich habe oft Spaß daran, mit Theorien oder abstrakten Ideen zu spielen.'
+  utter_ask_ver_item_9:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 6/30: Ich bekomme häufiger Streit mit meiner Familie und meinen Kollegen.'
+  utter_ask_ver_item_14:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 10/30: Manche Leute halten mich für selbstsüchtig und selbstgefällig.'
+  utter_ask_ver_item_24:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 15/30: Im Hinblick auf die Absichten anderer bin ich eher zynisch und skeptisch.'
+  utter_ask_ver_item_39:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 19/30: Manche Leute halten mich für kalt und berechnend.'
+  utter_ask_ver_item_49:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 24/30: Ich versuche stets rücksichtsvoll und sensibel zu handeln.'
+  utter_ask_ver_item_59:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 30/30: Um zu bekommen, was ich will, bin ich notfalls bereit, Menschen zu manipulieren.'
+  utter_ask_gew_item_5:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 2/30: Ich halte meine Sachen ordentlich und sauber.'
+  utter_ask_gew_item_10:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 7/30: Ich kann mir meine Zeit recht gut einteilen, sodass ich meine Angelegenheiten rechtzeitig beende.'
+  utter_ask_gew_item_20:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 11/30: Ich versuche, alle mir übertragenen Aufgaben sehr gewissenhaft zu erledigen.'
+  utter_ask_gew_item_40:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 20/30: Wenn ich eine Verpflichtung eingehe, dann kann man sich auf mich sicher verlassen.'
+  utter_ask_gew_item_50:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 25/30: Ich bin eine tüchtige Person, die ihre Arbeit immer erledigt.'
+  utter_ask_gew_item_55:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 28/30: Ich werde wohl niemals fähig sein, Ordnung in mein Leben zu bringen.'
+
+slots:
+  neu_item_6:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: neu_item_6
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  neu_item_21:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: neu_item_21
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  neu_item_11:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: neu_item_11
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  neu_item_26:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: neu_item_26
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  neu_item_41:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: neu_item_41
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  neu_item_51:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: neu_item_51
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  ext_item_2:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: ext_item_2
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  ext_item_7:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: ext_item_7
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  ext_item_22:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: ext_item_22
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  ext_item_32:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: ext_item_32
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  ext_item_37:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: ext_item_37
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  ext_item_52:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: ext_item_52
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  off_item_8:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: off_item_8
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  off_item_13:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: off_item_13
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  off_item_23:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: off_item_23
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  off_item_43:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: off_item_43
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  off_item_48:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: off_item_48
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  off_item_58:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: off_item_58
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  ver_item_9:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: ver_item_9
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  ver_item_14:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: ver_item_14
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  ver_item_24:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: ver_item_24
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  ver_item_39:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: ver_item_39
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  ver_item_49:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: ver_item_49
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  ver_item_59:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: ver_item_59
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  gew_item_5:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: gew_item_5
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  gew_item_10:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: gew_item_10
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  gew_item_20:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: gew_item_20
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  gew_item_40:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: gew_item_40
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  gew_item_50:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: gew_item_50
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  gew_item_55:
+    type: categorical
+    influence_conversation: false
+    mappings:
+    - type: from_text
+      conditions:
+      - active_loop: survey_form
+        requested_slot: gew_item_55
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+          
+forms:
+  test_form:
+    required_slots:
+    - ext_item_2
+    - gew_item_5
+    - neu_item_6
+    - ext_item_7
+    - off_item_8
+    - ver_item_9
+    - gew_item_10
+    - neu_item_11
+    - off_item_13
+    - ver_item_14
+    - gew_item_20
+    - neu_item_21
+    - ext_item_22
+    - off_item_23
+    - ver_item_24
+    - neu_item_26
+    - ext_item_32
+    - ext_item_37
+    - ver_item_39
+    - gew_item_40
+    - neu_item_41
+    - off_item_43
+    - off_item_48
+    - ver_item_49
+    - gew_item_50
+    - neu_item_51
+    - ext_item_52
+    - gew_item_55
+    - off_item_58
+    - ver_item_59

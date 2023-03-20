@@ -7,6 +7,13 @@
     <title>Chatbot</title>
 </head>
 <body> 
+	<div id="panel-dashboard" style="height: 100vh; width: 60vw;">
+		<iframe src="http://10.0.1.1:8003/"
+		name="iPanel-dashboard"
+		frameborder="0"
+		style="width: 100%;
+		height: 100%;">
+	</div>
 	<div id="rasaWebchatPro"></div>
 	<script>
 		!(function () {
@@ -18,14 +25,13 @@
 		(e.onload = () => {
 		window.WebChat.default(
 		{
-		  initPayload: '/greet',
-		  customData: { language: "en" },
-		  socketUrl: location.hostname + ":8000", // Remove this line when using SSL/TLS
-		  // Uncomment the next two lines when using SSL/TLS
-          //socketUrl: location.hostname, 
-		  //socketPath: "/rasax/socket.io/",
+		  initPayload: '/begin',
+		  customData: { language: "de" },
+		  //socketUrl: location.hostname + ":8000", // Remove this line when using SSL/TLS
+          socketUrl: location.hostname, 
+		  socketPath: "/rasax/socket.io/",
 		  title: 'Cleo',
-		  subtitle: 'My Subtitle',
+		  //subtitle: 'Persönlichkeitsadaptiver Chatbot',
 		  profileAvatar: "static/images/sara_avatar.png",
 		  inputTextFieldHint: 'Hier tippen...',
 		},
