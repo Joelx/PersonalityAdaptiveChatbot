@@ -29,7 +29,12 @@ from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 import os
 import urllib.request
 from haystack import Pipeline
-import config
+#import config
+
+# We want to handle relative paths like Django does it:
+# Define this as the root dir of the pipeline project
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__)) 
+MODEL_PATH = ROOT_DIR + "/models/"
 
 class ConversationHistoryRetreiver(BaseComponent):    
     outgoing_edges = 1
@@ -51,7 +56,7 @@ class ConversationHistoryRetreiver(BaseComponent):
 class TfidfVectorizerNode(BaseComponent):    
     outgoing_edges = 1
     
-    def __init__(self, model_path = config.MODEL_PATH + "vectorizers/idf_vectorizer1.2.2.joblib"):
+    def __init__(self, model_path = MODEL_PATH + "vectorizers/idf_vectorizer1.2.2.joblib"):
         self.model_path = model_path
         try:
             self.vectorizer = joblib.load(model_path)
@@ -91,7 +96,7 @@ class TfidfVectorizerNode(BaseComponent):
 class FasttextVectorizerNode(BaseComponent):    
     outgoing_edges = 1
    
-    def __init__(self, model_path: str = config.MODEL_PATH + "embeddings/wiki.de.vec.magnitude", embedding_dim: int = 300):
+    def __init__(self, model_path: str = MODEL_PATH + "embeddings/wiki.de.vec.magnitude", embedding_dim: int = 300):
         self.embedding_dim = embedding_dim
         self.model_path = model_path
         self.model_url = "https://drive.google.com/uc?id=10ILYDkEFnlrExQwo7_iu2sL2le43Xlcp&export=download&confirm=t&uuid=92d36780-86fc-4fae-b03c-f05653d01849"
@@ -128,7 +133,7 @@ class FasttextVectorizerNode(BaseComponent):
 class NormalizerNode(BaseComponent):    
     outgoing_edges = 1
     
-    def __init__(self, model_path: str = config.MODEL_PATH + "normalizers/embedding_normalizer1.2.2.joblib", input="embeddings"):
+    def __init__(self, model_path: str = MODEL_PATH + "normalizers/embedding_normalizer1.2.2.joblib", input="embeddings"):
         self.model_path = model_path
         self.input = input
         try:
@@ -168,8 +173,8 @@ class BigFiveFeaturizer(BaseComponent):
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name_or_path)
         self.config = AutoConfig.from_pretrained(self.model_name_or_path)
         self.model = AutoModelForSequenceClassification.from_pretrained(self.model_name_or_path)
-        self.model.save_pretrained(config.MODEL_PATH + self.model_name_or_path)
-        self.tokenizer.save_pretrained(config.MODEL_PATH + self.model_name_or_path)
+        self.model.save_pretrained(MODEL_PATH + self.model_name_or_path)
+        self.tokenizer.save_pretrained(MODEL_PATH + self.model_name_or_path)
         
     def _preprocess(self, text):
         new_text = []
@@ -200,7 +205,7 @@ class BigFiveFeaturizer(BaseComponent):
             '(\:\w+\:|\<[\/\\]?3|[\(\)\\\D|\*\$][\-\^]?[\:\;\=]|[\:\;\=B8][\-\^]?[3DOPp\@\$\*\\\)\(\/\|])(?=\s|[\!\.\?]|$)']
         is_emote = []
         
-        no_of_phrases = 0
+        no_of_phenvires = 0
         for re_patten in emoticons_re:
             no_of_phrases += len(re.findall(re_patten, text))
 
@@ -472,21 +477,21 @@ Cleo:"""
         pass
 
 def create_pipeline():
-    os.environ["OPENAI_API_KEY"] = config.OPENAI_API_KEY
+    #os.environ["OPENAI_API_KEY"] = config.OPENAI_API_KEY
 
     sf_model_paths = {
-        "neuroticism": config.MODEL_PATH + "feature_selectors/neuroticism_sf_selector2.joblib",
-        "extraversion": config.MODEL_PATH + "feature_selectors/extraversion_sf_selector2.joblib",
-        "openness": config.MODEL_PATH + "feature_selectors/openness_sf_selector2.joblib",
-        "agreeableness": config.MODEL_PATH + "feature_selectors/agreeableness_sf_selector2.joblib",
-        "conscientiousness": config.MODEL_PATH + "feature_selectors/conscientiousness_sf_selector2.joblib"
+        "neuroticism": MODEL_PATH + "feature_selectors/neuroticism_sf_selector2.joblib",
+        "extraversion": MODEL_PATH + "feature_selectors/extraversion_sf_selector2.joblib",
+        "openness": MODEL_PATH + "feature_selectors/openness_sf_selector2.joblib",
+        "agreeableness": MODEL_PATH + "feature_selectors/agreeableness_sf_selector2.joblib",
+        "conscientiousness": MODEL_PATH + "feature_selectors/conscientiousness_sf_selector2.joblib"
     }
     cf_model_paths = {
-        "neuroticism": config.MODEL_PATH + "big_five_classifiers/neuroticism_classifier2.joblib",
-        "extraversion": config.MODEL_PATH + "big_five_classifiers/extraversion_classifier2.joblib",
-        "openness": config.MODEL_PATH + "big_five_classifiers/openness_classifier2.joblib",
-        "agreeableness": config.MODEL_PATH + "big_five_classifiers/agreeableness_classifier2.joblib",
-        "conscientiousness": config.MODEL_PATH + "big_five_classifiers/conscientiousness_classifier2.joblib"
+        "neuroticism": MODEL_PATH + "big_five_classifiers/neuroticism_classifier2.joblib",
+        "extraversion": MODEL_PATH + "big_five_classifiers/extraversion_classifier2.joblib",
+        "openness": MODEL_PATH + "big_five_classifiers/openness_classifier2.joblib",
+        "agreeableness": MODEL_PATH + "big_five_classifiers/agreeableness_classifier2.joblib",
+        "conscientiousness": MODEL_PATH + "big_five_classifiers/conscientiousness_classifier2.joblib"
     }
     cf_thresholds = {
         "neuroticism": 0.578,
@@ -508,7 +513,7 @@ def create_pipeline():
     big_five_pipeline.add_node(component=embedding_normalizer, name="EmbeddingNormalizerNode", inputs=["FasttextVectorizerNode.output_1"])  
     featurizer = BigFiveFeaturizer()
     big_five_pipeline.add_node(component=featurizer, name="BigFiveFeaturizer", inputs=["ConversationHistoryRetreiver.output_1"]) 
-    feature_normalizer = NormalizerNode(model_path=config.MODEL_PATH + "normalizers/feature_normalizer1.2.2.joblib", input="features")
+    feature_normalizer = NormalizerNode(model_path=MODEL_PATH + "normalizers/feature_normalizer1.2.2.joblib", input="features")
     big_five_pipeline.add_node(component=feature_normalizer, name="FeatureNormalizerNode", inputs=["BigFiveFeaturizer.output_1"])
     concatenation_node = ConcatenationNode()
     big_five_pipeline.add_node(component=concatenation_node, name="ConcatenationNode", inputs=["FeatureNormalizerNode.output_1", "EmbeddingNormalizerNode.output_1"])

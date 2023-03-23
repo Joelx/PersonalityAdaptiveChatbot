@@ -28,7 +28,7 @@ class ActionHaystack(Action):
             print(active_loop)
             return
         conversation = self._parse_rasa_events_to_conversation(tracker.events)
-        url = "http://10.0.1.1:8001/query"
+        url = "https://joel-schlotthauer.com/pipeline/query"
 
         payload = {"conversation_history": conversation}
         print(payload)

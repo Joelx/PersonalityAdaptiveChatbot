@@ -271,3 +271,5 @@ pyvenv.cfg
 rasa-webservice.tar
 *.tar
 # Temporary
+
+k8s-configs/
