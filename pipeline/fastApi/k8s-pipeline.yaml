@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pipeline-fastapi
+  namespace: rasax
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pipeline-fastapi
+  template:
+    metadata:
+      labels:
+        app: pipeline-fastapi
+    spec:
+      containers:
+      - name: pipeline-fastapi
+        image: joes4/pipeline-fastapi
+        ports:
+        - containerPort: 8001
+        env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openai-key
+              key: OPENAI_API_KEY
+        - name: RABBITMQ_USERNAME
+          value: "user" # replace with your RabbitMQ username
+        - name: RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: rasax-release-rabbit
+              key: rabbitmq-password
+        - name: RABBITMQ_ERLANG_COOKIE
+          valueFrom:
+            secretKeyRef:
+              name: rasax-release-rabbit
+              key: rabbitmq-erlang-cookie
+        volumeMounts:
+        - name: pvc-7696932e-353a-4efc-b6f8-c880c2f61f53
+          mountPath: /app/models
+      volumes:
+      - name: pvc-7696932e-353a-4efc-b6f8-c880c2f61f53
+        persistentVolumeClaim:
+          claimName: models-volume-claim
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pipeline-fastapi-service
+  namespace: rasax
+spec:
+  selector:
+    app: pipeline-fastapi
+  ports:
+    - name: http
+      port: 8001
+      targetPort: 8001
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pipeline-fastapi-ingress
+  namespace: rasax
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    cert-manager.io/cluster-issuer: lets-encrypt
+spec:
+  tls:
+  - hosts:
+    - joel-schlotthauer.com
+    secretName: rasa-webservice-ingress-tls
+  rules:
+  - host: joel-schlotthauer.com
+    http:
+      paths:
+      - path: /pipeline(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: pipeline-fastapi-service
+            port:
+              name: http
+

@@ -1,0 +1,4 @@
+rabbitmq:
+  service:
+    type: ClusterIP
+    port: 5801 # set to desired port

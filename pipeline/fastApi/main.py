@@ -1,10 +1,7 @@
-import panel as pn
-from bokeh.embed import server_document
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from typing import Dict
-from dashboard.pn_app import createApp
 import requests
 import re
 
@@ -16,7 +13,6 @@ from ChatbotPipeline import create_pipeline, send_to_rabbitmq
 
 # create an instance of the FastAPI app
 app = FastAPI()
-templates = Jinja2Templates(directory="templates")
 
 big_five_pipeline = create_pipeline()
 
@@ -36,12 +32,6 @@ async def run(queryParams: Dict):
     else:
         response = {"response": "Kann noch nichts generieren"}
     return response
-
-
-# define a FastAPI endpoint for our Panel dashboard
-@app.get("/dashboard")
-async def bkapp_page(request: Request):
-   return "x"
 
 
 """

@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pipeline-dashboard
+  namespace: rasax
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pipeline-dashboard
+  template:
+    metadata:
+      labels:
+        app: pipeline-dashboard
+    spec:
+      containers:
+        - name: pipeline-dashboard
+          image: joes4/pipeline-dashboard:latest
+          ports:
+            - containerPort: 8050
+          env:
+          - name: OPENAI_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: openai-key
+                key: OPENAI_API_KEY
+          - name: RABBITMQ_USERNAME
+            value: "user" # replace with your RabbitMQ username
+          - name: RABBITMQ_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: rasax-release-rabbit
+                key: rabbitmq-password
+          - name: RABBITMQ_ERLANG_COOKIE
+            valueFrom:
+              secretKeyRef:
+                name: rasax-release-rabbit
+                key: rabbitmq-erlang-cookie
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pipeline-dashboard-service
+  namespace: rasax
+spec:
+  selector:
+    app: pipeline-dashboard
+  ports:
+    - name: tcp-8050
+      protocol: TCP
+      port: 8050
+      targetPort: 8050
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pipeline-dashboard-ingress
+  namespace: rasax
+  annotations:
+    #nginx.ingress.kubernetes.io/rewrite-target: /$2
+    #cert-manager.io/cluster-issuer: lets-encrypt
+spec:
+  tls:
+  - hosts:
+    - joel-schlotthauer.com
+    secretName: rasa-webservice-ingress-tls
+  rules:
+  - host: joel-schlotthauer.com
+    http:
+      paths:
+      - path: /dashboard(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: pipeline-dashboard-service
+            port:
+              number: 8050

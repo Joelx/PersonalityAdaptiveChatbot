@@ -1,3 +1,4 @@
+from flask import Flask
 import io
 import pika
 import json
@@ -12,8 +13,16 @@ import plotly.express as px
 import numpy as np
 from wordcloud import WordCloud
 import evaluations
+import os
 
 EXTERNAL_STYLESHEETS = ["https://codepen.io/chriddyp/pen/bWLwgP.css", dbc.themes.BOOTSTRAP]
+
+rabbit_username = os.environ['RABBITMQ_USERNAME']
+rabbit_password = os.environ['RABBITMQ_PASSWORD']
+erlang_cookie = os.environ['RABBITMQ_ERLANG_COOKIE']
+rabbit_host = "10.1.81.44"
+rabbit_port = 5672
+rabbit_credentials = pika.PlainCredentials(rabbit_username, rabbit_password)
 
 previous_tsne_fig = None
 previous_wordcloud = previous_fq_fig = previous_tm = previous_alert = {}
@@ -32,14 +41,14 @@ INTERVAL_COMPONENTS = [
     dcc.Interval(id='interval-component-15', interval=15000, n_intervals=0)
 ]
 
-MODEL_SELECT = [
-    dcc.Dropdown(
-        id='model-dropdown',
-        options=[{'label': model, 'value': model} for model in models],
-        value=models[0]
-    ),
-    html.Div(id='models-output')
-]
+# MODEL_SELECT = [
+#     dcc.Dropdown(
+#         id='model-dropdown',
+#         options=[{'label': model, 'value': model} for model in models],
+#         value=models[0]
+#     ),
+#     html.Div(id='models-output')
+# ]
 
 TSNE_PLOT = [
     dcc.Graph(id='scatter-plot')
@@ -50,7 +59,7 @@ SENTIMENT_OUTPUT = [
     dbc.CardBody(
     html.Div(children=[
         html.P(id='sentiment-output-row', children='Calulated no sentiments yet', 
-            style={"fontSize": 10, "font-weight": "lighter", "margin-left": 6, "margin-top": 6},),
+            style={"fontSize": 14, "margin-left": 6, "margin-top": 6},),
             ]))
 ]
 
@@ -59,7 +68,7 @@ FEATURE_OUTPUT = [
     dbc.CardBody(
     html.Div(id='features-output-row', children=[
         html.P(children='No features calculated yet',
-               style={"fontSize": 10, "font-weight": "lighter", "margin-left": 6, "margin-top": 6},),
+               style={"fontSize": 14, "margin-left": 6, "margin-top": 6},),
     ]),)
 ]
 
@@ -68,7 +77,7 @@ CLASSIFICATION_RESULT = [
     dbc.CardBody(
     html.Div(children=[
         html.Div(id='cf-output-row', children='Calulated no classifications yet', 
-            style={"fontSize": 10, "font-weight": "lighter", "margin-left": 6, "margin-top": 6},),
+            style={"fontSize": 14, "margin-left": 6, "margin-top": 6},),
             ]))
 ]
 
@@ -147,7 +156,7 @@ HEADER = dbc.Container(
 
 BODY = dbc.Container(
     [
-        dbc.Row([dbc.Col(dbc.Card(MODEL_SELECT)),], style={"marginTop": 30}),
+        #dbc.Row([dbc.Col(dbc.Card(MODEL_SELECT)),], style={"marginTop": 30}),
         dbc.Row([dbc.Col(dbc.Card(TSNE_PLOT)),], style={"marginTop": 30}),
         dbc.Row([dbc.Col(dbc.Card(SENTIMENT_OUTPUT)),], style={"marginTop": 30}),
         dbc.Row([dbc.Col(dbc.Card(FEATURE_OUTPUT)),], style={"marginTop": 30}),
@@ -159,14 +168,14 @@ BODY = dbc.Container(
     className="mt-12",
 )
 
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+#server = Flask(__name__)
+app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP], url_base_pathname='/dashboard/')
 server = app.server
-
 app.layout = html.Div(children=[HEADER, BODY])
 
 
 def receive_rabbitmq(queue):
-    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+    connection = pika.BlockingConnection(pika.ConnectionParameters(rabbit_host, rabbit_port, '/', rabbit_credentials))
     channel = connection.channel()
     exchange_name = queue + '-exchange'
     queue_name = queue + '-queue'
@@ -181,13 +190,13 @@ def receive_rabbitmq(queue):
 """
 MODEL SELECT
 """
-@app.callback(Output('models-output', 'children'), [Input('model-dropdown', 'value')])
-def display_selected_model(model):
-    return html.Div([
-        html.H4(children='Selected model: {}'.format(model), className="lead", style={"margin-left": 6, "margin-top": 6}),
-        html.P('Description of the {} model: ...'.format(model),
-               style={"fontSize": 10, "font-weight": "lighter", "margin-left": 6, "margin-top": 6})
-    ])
+# @app.callback(Output('models-output', 'children'), [Input('model-dropdown', 'value')])
+# def display_selected_model(model):
+#     return html.Div([
+#         html.H4(children='Selected model: {}'.format(model), className="lead", style={"margin-left": 6, "margin-top": 6}),
+#         html.P('Description of the {} model: ...'.format(model),
+#                style={"fontSize": 14, "margin-left": 6, "margin-top": 6})
+#     ])
 
 
 """
@@ -272,9 +281,9 @@ def update_features(n):
             features_html.append(html.Strong(children=feature.title(),
                                          style={"fontSize": 12, "fontWeight": "bold", "margin-left": 6, "margin-top": 6}, className="lead"),)
             features_html.append(html.P(children="Num of Features: " + str(features[feature]["num_of_features"]),
-                                        style={"fontSize": 10, "font-weight": "lighter", "margin-left": 6, "margin-top": 6},),)
+                                        style={"fontSize": 14, "margin-left": 6, "margin-top": 6},),)
             features_html.append(html.P(children="Features: " + ', '.join(features[feature]["feature_names"]),
-                                        style={"fontSize": 10, "font-weight": "lighter", "margin-left": 6, "margin-top": 6},),)
+                                        style={"fontSize": 14, "margin-left": 6, "margin-top": 6},),)
         previous_features = features_html
     else:
         # If there is no new data, use the previous_tsne_fig to update the plot
@@ -283,7 +292,7 @@ def update_features(n):
             features_html = previous_features
         else: 
             features_html = [html.H4(children="No features calculated yet", 
-                                     style={"fontSize": 10, "font-weight": "lighter", "margin-left": 6, "margin-top": 6},),]
+                                     style={"fontSize": 14, "margin-left": 6, "margin-top": 6},),]
     return features_html
 
 """
@@ -500,17 +509,5 @@ def plotly_wordcloud(text):
     return wordcloud_figure_data, frequency_figure_data, treemap_figure
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-if __name__ == '__main__':
-    app.run_server(debug=True)
+#if __name__ == '__main__':
+ #   app.run_server(debug=True, host='0.0.0.0', port=8050)

@@ -40,16 +40,16 @@ import pika
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__)) 
 MODEL_PATH = ROOT_DIR + "/models/"
 
-
+rabbit_username = os.environ['RABBITMQ_USERNAME']
+rabbit_password = os.environ['RABBITMQ_PASSWORD']
+erlang_cookie = os.environ['RABBITMQ_ERLANG_COOKIE']
+rabbit_host = "10.1.81.44"
+rabbit_port = 5672
+rabbit_credentials = pika.PlainCredentials(rabbit_username, rabbit_password)
 
 
 def send_to_rabbitmq(data, queue):
-    # connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
-    # channel = connection.channel()
-    # channel.queue_declare(queue=queue)
-    # channel.basic_publish(exchange='', routing_key=queue, body=data)
-    # connection.close()
-    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+    connection = pika.BlockingConnection(pika.ConnectionParameters(rabbit_host, rabbit_port, '/', rabbit_credentials))
     channel = connection.channel()
 
     exchange_name = queue + '-exchange'
