@@ -1,3 +1,6 @@
+import os
+os.environ["LANGCHAIN_HANDLER"] = "langchain"
+import json
 from typing import List, Dict, Text, Tuple
 from haystack import BaseComponent
 from haystack.schema import Document
@@ -6,7 +9,7 @@ import numpy as np
 import joblib
 from pymagnitude import Magnitude
 import nltk
-nltk.download('punkt')
+#nltk.download('punkt')
 from nltk import word_tokenize
 from transformers import AutoModelForSequenceClassification
 from transformers import AutoTokenizer, AutoConfig
@@ -26,15 +29,34 @@ from langchain.chat_models import ChatOpenAI
 #from langchain.callbacks import get_openai_callback
 from langchain.callbacks.base import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-import os
 import urllib.request
 from haystack import Pipeline
+import requests
+import pika
 #import config
 
 # We want to handle relative paths like Django does it:
 # Define this as the root dir of the pipeline project
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__)) 
 MODEL_PATH = ROOT_DIR + "/models/"
+
+
+
+
+def send_to_rabbitmq(data, queue):
+    # connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+    # channel = connection.channel()
+    # channel.queue_declare(queue=queue)
+    # channel.basic_publish(exchange='', routing_key=queue, body=data)
+    # connection.close()
+    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+    channel = connection.channel()
+
+    exchange_name = queue + '-exchange'
+    routing_key = queue + '-routing-key'
+
+    channel.exchange_declare(exchange=exchange_name, exchange_type='direct')
+    channel.basic_publish(exchange=exchange_name, routing_key=routing_key, body=data)
 
 class ConversationHistoryRetreiver(BaseComponent):    
     outgoing_edges = 1
@@ -48,6 +70,10 @@ class ConversationHistoryRetreiver(BaseComponent):
         print(query)
         user_conversation_history = self._parse_user_conversation_history(query)
         output={"conversation_history": user_conversation_history}
+
+        # Send to dashboard
+        send_to_rabbitmq(json.dumps(output), "text")
+
         return output, "output_1"
     
     def run_batch(self, queries: List[Text]) -> Dict[str, Document]:
@@ -117,9 +143,19 @@ class FasttextVectorizerNode(BaseComponent):
     
     def _tfidf_w2v(self, text: Text, idf_dict: Dict[Text, Dict[Text, float]]) -> np.array(List[List[float]]):
         vectors = []
-        w2v_vectors = self.model.query(word_tokenize(text))
-        weights = [idf_dict.get(word, 1) for word in word_tokenize(text)]
+        words = word_tokenize(text)
+        w2v_vectors = self.model.query(words)
+        print("------ w2v_vectors ---------")
+        print(w2v_vectors)
+        weights = [idf_dict.get(word, 1) for word in words]
+        print("------ Weights ---------")
+        print(weights)
         vectors.append(np.average(w2v_vectors, axis = 0, weights = weights))
+
+
+        embeddings = {"words": words, "vectors": w2v_vectors.tolist()}
+        send_to_rabbitmq(json.dumps(embeddings), "embeddings")
+
         return np.array(vectors)
 
     def run(self, conversation_history: Text, idf_embeddings: Dict[Text, Dict[str, float]]) -> Dict[str, np.ndarray]:
@@ -191,6 +227,11 @@ class BigFiveFeaturizer(BaseComponent):
         scores = output[0][0].detach().numpy()
         scores = softmax(scores)
         # [neg, neu, pos]
+
+        # Send to dashboard
+        sentiment_scores = {"sentiment": scores.tolist()}
+        send_to_rabbitmq(json.dumps(sentiment_scores), "sentiment")
+
         return np.array([scores])
             
     def _count_emojis(self, s):
@@ -205,7 +246,7 @@ class BigFiveFeaturizer(BaseComponent):
             '(\:\w+\:|\<[\/\\]?3|[\(\)\\\D|\*\$][\-\^]?[\:\;\=]|[\:\;\=B8][\-\^]?[3DOPp\@\$\*\\\)\(\/\|])(?=\s|[\!\.\?]|$)']
         is_emote = []
         
-        no_of_phenvires = 0
+        no_of_phrases = 0
         for re_patten in emoticons_re:
             no_of_phrases += len(re.findall(re_patten, text))
 
@@ -339,19 +380,28 @@ class BigFiveFeatureSelectionNode(BaseComponent):
                 print(f"Error loading selector: {e}")
                 self.selectors = None
             
-    def _select_features(self, features: np.array(float)):
+    def _select_features(self, features: np.array(float), feature_names: List[str]) -> np.ndarray:
         selected_features = {}
+        feature_json = {"features": {}}
         for dimension, selector in self.selectors.items():
             try:
                 selected_features[dimension] = selector.transform(features.tocsr())
+
+                # Build json for dashboard dashboard
+                feature_json['features'][dimension] = {
+                    "num_of_features": len(selector.k_feature_idx_),
+                    "feature_names": np.array(feature_names)[list(selector.k_feature_idx_)].tolist()
+                }
             except Exception as e:
                 print(f"Error loading selector: {e}")
+        print(feature_json)
+        # Send to dashboard
+        send_to_rabbitmq(json.dumps(feature_json), "features")
+
         return selected_features             
     
-    def run(self, concatenated_features: np.array(float)) -> Dict[str, np.ndarray]:
-        selected_features = self._select_features(concatenated_features)
-        print("----------- Selected Features --------------")
-        print(selected_features)
+    def run(self, concatenated_features: np.array(float), feature_names: List[str]) -> Dict[str, np.ndarray]:
+        selected_features = self._select_features(concatenated_features, feature_names)
         output={"selected_features": selected_features}
         return output, "output_1"
     
@@ -389,6 +439,17 @@ class BigFiveClassifierNode(BaseComponent):
             "classes": predicted_classes,
             "probabilities": predicted_proba
         }
+
+        predictions_json = predictions.copy()
+        # Convert NumPy arrays to Python lists. Required for json convertion
+        for key, value in predictions_json.items():
+            if isinstance(value, dict):
+                for sub_key, sub_value in value.items():
+                    value[sub_key] = sub_value.tolist()
+            else:
+                predictions_json[key] = value.tolist()
+        # Send to dashboard
+        send_to_rabbitmq(json.dumps(predictions_json), "classification")
         
         return predictions
 
@@ -466,9 +527,16 @@ Cleo:"""
         print("---------- Full Conversation history ------------")
         print(conversation_history) 
         res = self.conversation.run(big_five=big_five_string, history=conversation_history, input=current_user_input)    
-        self._count_tokens(" ".join([self.template, big_five_string, conversation_history, res]))
+        token_size = self._count_tokens(" ".join([self.template, big_five_string, conversation_history, res]))
         print("------ LLM Chain Result -----") 
-        print(res)  
+        
+        json_prompt = {
+            "token_size": token_size,
+            "prompt": self.template.format(big_five=big_five_string, history=conversation_history,input=current_user_input)
+        }
+        
+        # Send to dashboard
+        send_to_rabbitmq(json.dumps(json_prompt), "prompt")
         
         output = {'response': res}
         return output, "output_1"
@@ -477,7 +545,6 @@ Cleo:"""
         pass
 
 def create_pipeline():
-    #os.environ["OPENAI_API_KEY"] = config.OPENAI_API_KEY
 
     sf_model_paths = {
         "neuroticism": MODEL_PATH + "feature_selectors/neuroticism_sf_selector2.joblib",
@@ -500,7 +567,6 @@ def create_pipeline():
         "agreeableness": 0.494,
         "conscientiousness": 0.299
     }
-
 
     big_five_pipeline = Pipeline()
     history_retreiver = ConversationHistoryRetreiver()

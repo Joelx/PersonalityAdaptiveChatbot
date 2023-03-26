@@ -1,4 +1,0 @@
-fastapi==0.94.1
-uvicorn==0.21.1
-panel==0.14.4
-starlette==0.26.1

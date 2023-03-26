@@ -12,7 +12,7 @@ import re
 import sys 
 sys.path.append('..')
 # Import ChatbotPipeline module from parent folder
-from ChatbotPipeline import create_pipeline
+from ChatbotPipeline import create_pipeline, send_to_rabbitmq
 
 # create an instance of the FastAPI app
 app = FastAPI()
@@ -41,46 +41,7 @@ async def run(queryParams: Dict):
 # define a FastAPI endpoint for our Panel dashboard
 @app.get("/dashboard")
 async def bkapp_page(request: Request):
-   script = server_document('http://0.0.0.0:4999/app')
-   return templates.TemplateResponse("dashboard.html", {"request": request, "script": script})
-
-# @app.get("/dashboard")
-# async def bkapp_page(request: Request):
-#     script = server_document('http://0.0.0.0:4999/app')
-#     bokeh_url = re.search(r"xhr.open\('GET', \"(.*?)\"", script).group(1)
-#     print(bokeh_url)
-#     bokeh_script = requests.get(bokeh_url).text
-#     print(bokeh_script)
-
-#     html_content = f"""<html>
-#         <head>
-#             <title>Test</title>
-#         </head>
-#         <body>
-#         <h1>Test</h1>
-#         <div id="plot"></div>
-#         <script>
-#             {bokeh_script}
-#         </script>
-#         </body>
-#     </html>
-#     """
-#     return HTMLResponse(content=html_content)
-
-pn.serve({'/app': createApp},
-        port=4999, allow_websocket_origin=["0.0.0.0:8001", "0.0.0.0", "127.0.0.1:8001"],
-        address="0.0.0.0", show=False)
-
-
-
-
-
-
-
-
-
-
-
+   return "x"
 
 
 """
@@ -91,8 +52,11 @@ Test route via get
 async def run():
     conversation_history = [
         {"event": "user", "message": "hallo!"},
-        {"event": "cleo", "message": "Hallo, wie kann ich dir helfen?"}
+        {"event": "cleo", "message": "Hallo, wie kann ich dir helfen?"},
+        {"event": "user", "message": "Ich möchte plaudern. Bitte erzähle mir etwas über dich!"},
     ]
     res = big_five_pipeline.run(query=conversation_history)
-    response = {"response": res['response']}
+    response = {"response": res['response']}    
+
     return response
+
