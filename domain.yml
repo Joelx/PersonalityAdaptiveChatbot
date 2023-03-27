@@ -25,6 +25,9 @@ responses:
       title: "Unterhaltung beginnen"
     text: "Was möchtest du tun? Wenn du einen Big Five Persönlichkeitstest durchführst, werde ich mich an das Testergebnis halten, um mich deinen Bedürfnissen anzupassen.\nBeginnst du hingegen direkt mit der Unterhaltung, versuche ich deine Persönlichkeit automatisch über deinen Schreibstil festzustellen."
 
+  utter_ask_topic:
+  - text: "Worüber möchtest du reden?"
+  
   # NEO-FFI-30 TEST!
   utter_ask_neu_item_6:
   - buttons:

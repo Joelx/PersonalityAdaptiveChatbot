@@ -15,6 +15,13 @@ rules:
   - action: test_form
   - active_loop: test_form
 
+- rule: Begin free conversation
+  condition:
+  - active_loop: null
+  steps:
+  - intent: start_conversation
+  - action: ask_topic
+
 - rule: Query Haystack whenever they send a message with low NLU confidence
   steps:
     - intent: nlu_fallback

@@ -40,10 +40,14 @@ import pika
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__)) 
 MODEL_PATH = ROOT_DIR + "/models/"
 
-rabbit_username = os.environ['RABBITMQ_USERNAME']
-rabbit_password = os.environ['RABBITMQ_PASSWORD']
-erlang_cookie = os.environ['RABBITMQ_ERLANG_COOKIE']
-rabbit_host = "10.1.81.44"
+os.environ["OPENAI_API_KEY"] = "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"
+# rabbit_username = os.environ['RABBITMQ_USERNAME']
+# rabbit_password = os.environ['RABBITMQ_PASSWORD']
+# erlang_cookie = os.environ['RABBITMQ_ERLANG_COOKIE']
+# rabbit_host = "10.1.81.44"
+rabbit_username = "guest"
+rabbit_password ="guest"
+rabbit_host = "localhost"
 rabbit_port = 5672
 rabbit_credentials = pika.PlainCredentials(rabbit_username, rabbit_password)
 
@@ -57,6 +61,19 @@ def send_to_rabbitmq(data, queue):
 
     channel.exchange_declare(exchange=exchange_name, exchange_type='direct')
     channel.basic_publish(exchange=exchange_name, routing_key=routing_key, body=data)
+
+def receive_rabbitmq(queue):
+    connection = pika.BlockingConnection(pika.ConnectionParameters(rabbit_host, rabbit_port, '/', rabbit_credentials))
+    channel = connection.channel()
+    exchange_name = queue + '-exchange'
+    queue_name = queue + '-queue'
+    routing_key = queue + '-routing-key'
+    channel.exchange_declare(exchange=exchange_name, exchange_type='direct')
+    channel.queue_declare(queue=queue_name)
+    channel.queue_bind(exchange=exchange_name, queue=queue_name, routing_key=routing_key)
+    method_frame, header_frame, body = channel.basic_get(queue=queue_name, auto_ack=True)
+    connection.close()
+    return body
 
 class ConversationHistoryRetreiver(BaseComponent):    
     outgoing_edges = 1
@@ -427,9 +444,17 @@ class BigFiveClassifierNode(BaseComponent):
     def _predict(self, selected_features: Dict[str, np.ndarray]):
         predicted_classes = {}
         predicted_proba = {}
+
+        # Get threshold config from dashboard
+        body = receive_rabbitmq("thresholds")
+        if body:
+            self.thresholds = json.loads(body)
+            print("------ THRESHOLDS ------------")
+            print(self.thresholds)
+        send_to_rabbitmq(json.dumps(self.thresholds), "actual-thresholds")
+
         for dimension, features in selected_features.items():
             try:
-                #predicted_classes[dimension] = self.models[dimension].predict(features)
                 predicted_proba[dimension] = self.models[dimension].predict_proba(features)[:,1]
                 predicted_classes[dimension] = np.where(predicted_proba[dimension] >= self.thresholds[dimension], 1, 0)
             except Exception as e:

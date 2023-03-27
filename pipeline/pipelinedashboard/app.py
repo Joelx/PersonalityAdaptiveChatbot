@@ -1,5 +1,5 @@
-from flask import Flask
-import io
+from fastapi import FastAPI
+from fastapi.middleware.wsgi import WSGIMiddleware
 import pika
 import json
 import dash
@@ -17,10 +17,14 @@ import os
 
 EXTERNAL_STYLESHEETS = ["https://codepen.io/chriddyp/pen/bWLwgP.css", dbc.themes.BOOTSTRAP]
 
-rabbit_username = os.environ['RABBITMQ_USERNAME']
-rabbit_password = os.environ['RABBITMQ_PASSWORD']
-erlang_cookie = os.environ['RABBITMQ_ERLANG_COOKIE']
-rabbit_host = "10.1.81.44"
+os.environ["OPENAI_API_KEY"] = "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"
+# rabbit_username = os.environ['RABBITMQ_USERNAME']
+# rabbit_password = os.environ['RABBITMQ_PASSWORD']
+# erlang_cookie = os.environ['RABBITMQ_ERLANG_COOKIE']
+# rabbit_host = "10.1.81.44"
+rabbit_username = "guest"
+rabbit_password ="guest"
+rabbit_host = "localhost"
 rabbit_port = 5672
 rabbit_credentials = pika.PlainCredentials(rabbit_username, rabbit_password)
 
@@ -50,6 +54,55 @@ INTERVAL_COMPONENTS = [
 #     html.Div(id='models-output')
 # ]
 
+
+EVALUATION_STARTER = [
+    dbc.Card(
+        [
+            dbc.CardHeader(html.H4(children="Evaluation", className="lead")),
+    dbc.CardBody(
+        [
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            dbc.Button(
+                                "Start Evaluation Run",
+                                id="eval-button",
+                                color="primary",
+                                #block=True,
+                            ),
+                        ]
+                    ),
+                    dbc.Col(
+                        [
+                            dbc.Spinner(
+                                html.Div(
+                                    id="output-div",
+                                    className="output-div",
+                                )
+                            )
+                        ]
+                    ),
+                ]
+            ),
+            dbc.Row(
+                [
+                    dbc.Col(
+                        dbc.Alert(
+                            "Evaluation is currently running...",
+                            id="eval-alert",
+                            color="warning",
+                            style={"display": "none"},
+                        )
+                    )
+                ]
+            ),
+        ]
+    )
+        ]
+    )    
+]
+
 TSNE_PLOT = [
     dcc.Graph(id='scatter-plot')
 ]
@@ -71,6 +124,70 @@ FEATURE_OUTPUT = [
                style={"fontSize": 14, "margin-left": 6, "margin-top": 6},),
     ]),)
 ]
+
+CLASSIFICATION_THRESHOLDS = dbc.Card([
+    dbc.CardHeader(html.H4(children="Classification Thresholds", className="lead")),
+    dbc.CardBody([
+        dbc.Row([
+            dbc.Col([
+                html.H6("Input"),
+                html.Label('Neuroticism: ', style={'margin-right': '10px'}),
+                dcc.Input(
+                    id='neuroticism-threshold',
+                    type='number',
+                    min=0,
+                    max=1,
+                    step=0.05,
+                    value=0.578,
+                ),
+                html.Br(),
+                html.Label('Extraversion: ', style={'margin-right': '10px'}),
+                dcc.Input(
+                    id='extraversion-threshold',
+                    type='number',
+                    min=0,
+                    max=1,
+                    step=0.05,
+                    value=0.478,
+                ),
+                html.Br(),
+                html.Label('Openness: ', style={'margin-right': '10px'}),
+                dcc.Input(
+                    id='openness-threshold',
+                    type='number',
+                    min=0,
+                    max=1,
+                    step=0.05,
+                    value=0.178,
+                ),
+                html.Br(),
+                html.Label('Agreeableness: ', style={'margin-right': '10px'}),
+                dcc.Input(
+                    id='agreeableness-threshold',
+                    type='number',
+                    min=0,
+                    max=1,
+                    step=0.05,
+                    value=0.494,
+                ),
+                html.Br(),
+                html.Label('Conscientiousness: ', style={'margin-right': '10px'}),
+                dcc.Input(
+                    id='conscientiousness-threshold',
+                    type='number',
+                    min=0,
+                    max=1,
+                    step=0.05,
+                    value=0.299,
+                ),
+            ], md=6),
+            dbc.Col([
+                html.H6("Check actual config fetched by pipeline server"),
+                html.Div(id='output'),
+            ], md=6),
+        ]),
+    ]),
+])
 
 CLASSIFICATION_RESULT = [
     dbc.CardHeader(html.H4(children="Big5 Classification Results", className="lead")),
@@ -157,22 +274,39 @@ HEADER = dbc.Container(
 BODY = dbc.Container(
     [
         #dbc.Row([dbc.Col(dbc.Card(MODEL_SELECT)),], style={"marginTop": 30}),
+        dbc.Row([dbc.Col(EVALUATION_STARTER),], style={"marginTop": 30}),
         dbc.Row([dbc.Col(dbc.Card(TSNE_PLOT)),], style={"marginTop": 30}),
         dbc.Row([dbc.Col(dbc.Card(SENTIMENT_OUTPUT)),], style={"marginTop": 30}),
         dbc.Row([dbc.Col(dbc.Card(FEATURE_OUTPUT)),], style={"marginTop": 30}),
         dbc.Card(WORDCLOUD_PLOT, style={"marginTop": 30}),
+        dbc.Row([dbc.Col(dbc.Card(CLASSIFICATION_THRESHOLDS)),], style={"marginTop": 30}),
         dbc.Row([dbc.Col(dbc.Card(CLASSIFICATION_RESULT)),], style={"marginTop": 30}),
-        dbc.Row([dbc.Col(dbc.Card(CURRENT_PROMPT)),], style={"marginTop": 30}),
+        dbc.Row([dbc.Col(dbc.Card(CURRENT_PROMPT)),], style={"marginTop": 30, "marginBottom": 30}),
        # dbc.Row([dbc.Col([])], style={"marginTop": 50}),
     ],
     className="mt-12",
 )
 
-#server = Flask(__name__)
+server = FastAPI()
 app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP], url_base_pathname='/dashboard/')
-server = app.server
 app.layout = html.Div(children=[HEADER, BODY])
 
+"""
+RabbitMQ send and receive functions.
+Since we need intervals and callback functions in dash to pull the information,
+we need to create a separate rabbit connection for each pull. 
+This is not efficient, however, otherwise we would need 
+to implement Threading and we dont have unlimited time. 
+"""
+def send_to_rabbitmq(data, queue):
+    connection = pika.BlockingConnection(pika.ConnectionParameters(rabbit_host, rabbit_port, '/', rabbit_credentials))
+    channel = connection.channel()
+
+    exchange_name = queue + '-exchange'
+    routing_key = queue + '-routing-key'
+
+    channel.exchange_declare(exchange=exchange_name, exchange_type='direct')
+    channel.basic_publish(exchange=exchange_name, routing_key=routing_key, body=data)
 
 def receive_rabbitmq(queue):
     connection = pika.BlockingConnection(pika.ConnectionParameters(rabbit_host, rabbit_port, '/', rabbit_credentials))
@@ -186,6 +320,33 @@ def receive_rabbitmq(queue):
     method_frame, header_frame, body = channel.basic_get(queue=queue_name, auto_ack=True)
     connection.close()
     return body
+
+
+
+@app.callback(
+    Output("eval-button", "disabled"),
+    Output("eval-alert", "style"),
+    Output("output-div", "children"),
+    Input("eval-button", "n_clicks"),
+)
+def start_eval_run(n_clicks):
+    if not n_clicks:
+        return False, {"display": "none"}, ""
+
+    bot = evaluations.RasaSocketIOBot()
+    bot.connect("https://joel-schlotthauer.com/rasax/socket.io/")
+    bot.start_conversation()
+    conversation_result = bot.conversator.memory.get_conversation()
+    conversation_text = "\n".join(conversation_result)
+    
+    return True, {"display": "block"}, dcc.Textarea(
+        value=conversation_text,
+        readOnly=True,
+        className="conversation-text",
+        style={"width": "100%", "height": "calc(100vh - 200px)", "resize": "none"},
+    )
+
+
 
 """
 MODEL SELECT
@@ -338,6 +499,51 @@ def update_wordcloud(n):
     #print("redrawing conversation-wordcloud...done")
     return (wordcloud, frequency_figure, treemap, alert_style)
 
+
+# Define the callback function to update the output
+@app.callback(
+    Output('output', 'children'),
+    [Input('openness-threshold', 'value'),
+     Input('conscientiousness-threshold', 'value'),
+     Input('extraversion-threshold', 'value'),
+     Input('agreeableness-threshold', 'value'),
+     Input('neuroticism-threshold', 'value')]
+)
+def update_output(openness_threshold, conscientiousness_threshold, extraversion_threshold, agreeableness_threshold, neuroticism_threshold):
+    threshold_json =  {
+        "neuroticism": neuroticism_threshold,
+        "extraversion": extraversion_threshold,
+        "openness": openness_threshold,
+        "agreeableness": agreeableness_threshold,
+        "conscientiousness": conscientiousness_threshold
+    }
+    send_to_rabbitmq(json.dumps(threshold_json), "thresholds")
+
+    body = receive_rabbitmq("actual-thresholds")
+
+    if body:
+        actual_thresholds = json.loads(body)
+        neuroticism_threshold = actual_thresholds["neuroticism"]
+        extraversion_threshold = actual_thresholds["extraversion"]
+        openness_threshold = actual_thresholds["openness"]
+        agreeableness_threshold = actual_thresholds["agreeableness"]
+        conscientiousness_threshold = actual_thresholds["conscientiousness"]
+
+        return html.Div([
+            html.Span(f'Neuroticism Threshold: {neuroticism_threshold}'),
+            html.Br(),
+            html.Span(f'Extraversion Threshold: {extraversion_threshold}'),
+            html.Br(),
+            html.Span(f'Openness Threshold: {openness_threshold}'),
+            html.Br(),
+            html.Span(f'Agreeableness Threshold: {agreeableness_threshold}'),
+            html.Br(),
+            html.Span(f'Conscientiousness Threshold: {conscientiousness_threshold}'),
+        ])
+    else:
+        return html.Div(html.Span("Fetched no real configuration from pipeline server yet."))
+
+
 @app.callback(
     Output('cf-output-row', 'children'),
     [Input('interval-component', 'n_intervals')]
@@ -352,7 +558,7 @@ def update_classification(n):
         probas = data['probabilities']
         overall_classification_html = []
         classification_html = []
-        classification_html.append(html.H5(children="Pipeline Classification:", 
+        classification_html.append(html.H6(children="Pipeline Classification:", 
                                            style={"fontSize": 14}, className="lead"))
         for cs in classes:
             classification_html.append(html.Strong(children=cs.title(),
@@ -362,7 +568,7 @@ def update_classification(n):
         print(classes)
         if (current_user_text):
             gpt_classification_html = []
-            gpt_classification_html.append(html.H5(children="Evaluation Classification by gpt-3.5-turbo:", 
+            gpt_classification_html.append(html.H6(children="Evaluation Classification by gpt-3.5-turbo:", 
                                         style={"fontSize": 12}, className="lead"))
             gpt35_classifier = evaluations.BigFiveClassificationEvaluator()
             gpt35_cf_res = gpt35_classifier.classify(current_user_text)
@@ -509,5 +715,4 @@ def plotly_wordcloud(text):
     return wordcloud_figure_data, frequency_figure_data, treemap_figure
 
 
-#if __name__ == '__main__':
- #   app.run_server(debug=True, host='0.0.0.0', port=8050)
+server.mount('/', WSGIMiddleware(app.server))
