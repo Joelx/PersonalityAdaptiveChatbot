@@ -93,6 +93,7 @@ class RasaSocketIOBot:
     async def on_bot_uttered(self, data):
         message = data['text']
         response = self.conversator.chat(message)
+        print(response)
         await self.sio.emit('bot_uttered', {'message': response})
 
     async def chat(self, message: Text) -> Text:

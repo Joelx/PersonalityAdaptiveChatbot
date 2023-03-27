@@ -20,7 +20,7 @@ rules:
   - active_loop: null
   steps:
   - intent: start_conversation
-  - action: ask_topic
+  - action: utter_ask_topic
 
 - rule: Query Haystack whenever they send a message with low NLU confidence
   steps:

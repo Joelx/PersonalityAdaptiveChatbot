@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
 import pika
@@ -14,6 +15,7 @@ import numpy as np
 from wordcloud import WordCloud
 import evaluations
 import os
+import time
 
 EXTERNAL_STYLESHEETS = ["https://codepen.io/chriddyp/pen/bWLwgP.css", dbc.themes.BOOTSTRAP]
 
@@ -329,14 +331,21 @@ def receive_rabbitmq(queue):
     Output("output-div", "children"),
     Input("eval-button", "n_clicks"),
 )
-def start_eval_run(n_clicks):
+def eval_button_callback(n_clicks):
+    if not n_clicks:
+        return False, {"display": "none"}, ""
+    
+    time.sleep(2) # wait for 2 seconds
+    return asyncio.run(start_eval_run(n_clicks)) # execute start_eval_run coroutine after 2 seconds
+
+async def start_eval_run(n_clicks):
     if not n_clicks:
         return False, {"display": "none"}, ""
 
     bot = evaluations.RasaSocketIOBot()
-    bot.connect("https://joel-schlotthauer.com/rasax/socket.io/")
-    bot.start_conversation()
-    conversation_result = bot.conversator.memory.get_conversation()
+    await bot.connect("https://joel-schlotthauer.com/rasax/socket.io/")
+    await bot.start_conversation()
+    conversation_result = bot.conversator.memory.buffer
     conversation_text = "\n".join(conversation_result)
     
     return True, {"display": "block"}, dcc.Textarea(
