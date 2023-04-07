@@ -1,15 +1,14 @@
 version: "3.0"
 
 nlu:
-- intent: begin
+- regex: begin
   examples: |
-    - /begin
+    - ^/begin$
 
-- intent: start_test
+- regex: start_test
   examples: |
-    - /[start_test]
-  
-- intent: start_conversation
-  examples: |
-    - /start_conversation
+    - ^/start_test$
 
+- regex: start_conversation
+  examples: |
+    - ^/start_conversation$

@@ -1,6 +1,7 @@
 import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from RabbitMQ import *
 import json
 import dash
@@ -273,6 +274,13 @@ BODY = dbc.Container(
 )
 
 server = FastAPI()
+server.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 #server.add_middleware(SessionMiddleware, secret_key=secrets.token_hex(16))
 app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP], url_base_pathname='/dashboard/')
 app.layout = html.Div(children=[HEADER, BODY])

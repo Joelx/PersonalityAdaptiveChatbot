@@ -31,9 +31,8 @@
 		{
 		  initPayload: '/begin',
 		  customData: { language: "de" },
-		  //socketUrl: location.hostname + ":8000", // Remove this line when using SSL/TLS
-          //socketUrl: location.hostname, 
-		  socketUrl: "https://joel-schlotthauer.com",
+          socketUrl: location.hostname, 
+		  //socketUrl: "https://joel-schlotthauer.com",
 		  socketPath: "/rasax/socket.io/",
 		  title: 'Cleo',
 		  //subtitle: 'Persönlichkeitsadaptiver Chatbot',
@@ -44,9 +43,7 @@
 	  );
 		}),
 		t.insertBefore(e, t.firstChild);           
-	})();
-
-	
+	})();	
 </script>
 </body>
 </html>

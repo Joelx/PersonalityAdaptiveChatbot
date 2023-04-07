@@ -8,7 +8,7 @@ WORKDIR /app
 COPY . /app
 
 # Install any needed packages specified in requirements.txt
-RUN pip install -r requirements.txt gunicorn uvicorn
+RUN pip install -r requirements.txt uvicorn
 
 # Expose port 8050 for the Dash app
 EXPOSE 8050
@@ -18,7 +18,9 @@ EXPOSE 8050
 # Start the server using Uvicorn
 #CMD ["uvicorn", "app:server", "--host", "0.0.0.0", "--port", "8050", "--reload"]
 
-CMD ["gunicorn", "app:server", "--bind", "0.0.0.0:8050", "--reload"] 
+#CMD ["gunicorn", "app:server", "--bind", "0.0.0.0:8050", "--reload"] 
 #CMD ["gunicorn", "app:server", "--bind", "0.0.0.0:8050", "--worker-class", "uvicorn.workers.UvicornWorker"] 
 
 # AUF UVICORN WECHSELN UND keep_alive_timeout=60) einfügen!!
+
+CMD ["uvicorn", "app:server", "--proxy-headers", "--host", "0.0.0.0", "--port", "8050", "--reload", "--log-level", "warning"]

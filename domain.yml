@@ -427,27 +427,27 @@ slots:
     type: text
     influence_conversation: false
     mappings:
-    - type: from_text
+    - type: custom
   extraversion_test_result:
     type: text
     influence_conversation: false
     mappings:
-    - type: from_text
+    - type: custom
   openness_test_result:
     type: text
     influence_conversation: false
     mappings:
-    - type: from_text
+    - type: custom
   agreeableness_test_result:
     type: text
     influence_conversation: false
     mappings:
-    - type: from_text
+    - type: custom
   conscientiousness_test_result:
     type: text
     influence_conversation: false
     mappings:
-    - type: from_text
+    - type: custom
   neu_item_6:
     type: categorical
     influence_conversation: false
