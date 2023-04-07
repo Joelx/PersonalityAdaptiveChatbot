@@ -1,17 +1,17 @@
 version: "3.0"
 
 nlu:
-- intent: begin
-  examples: |
-    - /begin
+# - intent: begin
+#   examples: |
+#     - /begin
 
-- intent: start_test
-  examples: |
-    - /start_test
+# - intent: start_test
+#   examples: |
+#     - /start_test
   
-- intent: start_conversation
-  examples: |
-    - /start_conversation
+# - intent: start_conversation
+#   examples: |
+#     - /start_conversation
 
 - regex: begin
   examples: |
