@@ -7,11 +7,12 @@ recipe: default.v1
 language: de
 
 pipeline:
+  - name: WhitespaceTokenizer
   - name: RegexFeaturizer
   - name: FallbackClassifier
     threshold: 0.9
     ambiguity_threshold: 0.1
-  # - name: WhitespaceTokenizer
+
 
   # - name: LexicalSyntacticFeaturizer
   # - name: CountVectorsFeaturizer
