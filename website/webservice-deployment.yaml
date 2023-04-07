@@ -19,3 +19,30 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rasa-webservice-ingress
+  namespace: rasax
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: lets-encrypt
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header X-Frame-Options "ALLOW-FROM https://joel-schlotthauer.com";
+spec:
+  tls:
+  - hosts:
+    - joel-schlotthauer.com
+    secretName: rasa-webservice-ingress-tls
+  rules:
+  - host: joel-schlotthauer.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: rasa-webservice-service
+            port:
+              name: http
