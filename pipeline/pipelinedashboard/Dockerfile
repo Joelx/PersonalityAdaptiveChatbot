@@ -20,3 +20,5 @@ EXPOSE 8050
 
 CMD ["gunicorn", "app:server", "--bind", "0.0.0.0:8050", "--reload"] 
 #CMD ["gunicorn", "app:server", "--bind", "0.0.0.0:8050", "--worker-class", "uvicorn.workers.UvicornWorker"] 
+
+# AUF UVICORN WECHSELN UND keep_alive_timeout=60) einfügen!!

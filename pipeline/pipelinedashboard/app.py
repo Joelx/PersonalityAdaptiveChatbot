@@ -1,61 +1,24 @@
 import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
-import pika
+from RabbitMQ import *
 import json
 import dash
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 from dash import dcc
 import dash_bootstrap_components as dbc
+from dash.exceptions import PreventUpdate
 from dash import html
 import plotly.graph_objs as go
 from sklearn.manifold import TSNE
-import plotly.express as px
 import numpy as np
 from wordcloud import WordCloud
 import evaluations
 import os
 import time
+import urllib.parse
 
 EXTERNAL_STYLESHEETS = ["https://codepen.io/chriddyp/pen/bWLwgP.css", dbc.themes.BOOTSTRAP]
-
-os.environ["OPENAI_API_KEY"] = "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"
-# rabbit_username = os.environ['RABBITMQ_USERNAME']
-# rabbit_password = os.environ['RABBITMQ_PASSWORD']
-# erlang_cookie = os.environ['RABBITMQ_ERLANG_COOKIE']
-# rabbit_host = "10.1.81.44"
-rabbit_username = "guest"
-rabbit_password ="guest"
-rabbit_host = "localhost"
-rabbit_port = 5672
-rabbit_credentials = pika.PlainCredentials(rabbit_username, rabbit_password)
-
-previous_tsne_fig = None
-previous_wordcloud = previous_fq_fig = previous_tm = previous_alert = {}
-previous_sentiment = None
-previous_features = None
-previous_classification = None
-previous_prompt = None
-current_user_text = ""
-
-# List of available machine learning models
-models = ['Model A', 'Model B', 'Model C']
-
-
-INTERVAL_COMPONENTS = [
-    dcc.Interval(id='interval-component', interval=1000, n_intervals=0),
-    dcc.Interval(id='interval-component-15', interval=15000, n_intervals=0)
-]
-
-# MODEL_SELECT = [
-#     dcc.Dropdown(
-#         id='model-dropdown',
-#         options=[{'label': model, 'value': model} for model in models],
-#         value=models[0]
-#     ),
-#     html.Div(id='models-output')
-# ]
-
 
 EVALUATION_STARTER = [
     dbc.Card(
@@ -75,15 +38,14 @@ EVALUATION_STARTER = [
                             ),
                         ]
                     ),
-                    dbc.Col(
-                        [
-                            dbc.Spinner(
-                                html.Div(
-                                    id="output-div",
-                                    className="output-div",
-                                )
-                            )
-                        ]
+                    #dbc.Spinner(
+                    #),
+                    html.Div(
+                        id="eval-conversation-html",
+                        children=[
+                                html.Div("No evaluation run has been started yet.")
+                                ],
+                        style={"width": "100%", "height": "200px", "overflow-y": "scroll", "margin-top": "8px"}
                     ),
                 ]
             ),
@@ -106,7 +68,10 @@ EVALUATION_STARTER = [
 ]
 
 TSNE_PLOT = [
-    dcc.Graph(id='scatter-plot')
+    dbc.CardHeader(html.H4(children="Embeddings TSNE Plot", className="lead")),
+    dbc.CardBody(
+        dcc.Graph(id='scatter-plot')
+    )
 ]
 
 SENTIMENT_OUTPUT = [
@@ -114,7 +79,7 @@ SENTIMENT_OUTPUT = [
     dbc.CardBody(
     html.Div(children=[
         html.P(id='sentiment-output-row', children='Calulated no sentiments yet', 
-            style={"fontSize": 14, "margin-left": 6, "margin-top": 6},),
+            style={"fontSize": 16, "margin-left": 6, "margin-top": 6},),
             ]))
 ]
 
@@ -132,60 +97,66 @@ CLASSIFICATION_THRESHOLDS = dbc.Card([
     dbc.CardBody([
         dbc.Row([
             dbc.Col([
-                html.H6("Input"),
-                html.Label('Neuroticism: ', style={'margin-right': '10px'}),
-                dcc.Input(
+               dbc.Table([
+            html.Tr([
+                html.Td(html.Label('Neuroticism: ', style={'margin-right': '10px'})),
+                html.Td(dcc.Input(
                     id='neuroticism-threshold',
                     type='number',
                     min=0,
                     max=1,
                     step=0.05,
                     value=0.578,
-                ),
-                html.Br(),
-                html.Label('Extraversion: ', style={'margin-right': '10px'}),
-                dcc.Input(
+                )),
+            ]),
+            html.Tr([
+                html.Td(html.Label('Extraversion: ', style={'margin-right': '10px'})),
+                html.Td(dcc.Input(
                     id='extraversion-threshold',
                     type='number',
                     min=0,
                     max=1,
                     step=0.05,
                     value=0.478,
-                ),
-                html.Br(),
-                html.Label('Openness: ', style={'margin-right': '10px'}),
-                dcc.Input(
+                )),
+            ]),
+            html.Tr([
+                html.Td(html.Label('Openness: ', style={'margin-right': '10px'})),
+                html.Td(dcc.Input(
                     id='openness-threshold',
                     type='number',
                     min=0,
                     max=1,
                     step=0.05,
                     value=0.178,
-                ),
-                html.Br(),
-                html.Label('Agreeableness: ', style={'margin-right': '10px'}),
-                dcc.Input(
+                )),
+            ]),
+            html.Tr([
+                html.Td(html.Label('Agreeableness: ', style={'margin-right': '10px'})),
+                html.Td(dcc.Input(
                     id='agreeableness-threshold',
                     type='number',
                     min=0,
                     max=1,
                     step=0.05,
                     value=0.494,
-                ),
-                html.Br(),
-                html.Label('Conscientiousness: ', style={'margin-right': '10px'}),
-                dcc.Input(
+                )),
+            ]),
+            html.Tr([
+                html.Td(html.Label('Conscientiousness: ', style={'margin-right': '10px'})),
+                html.Td(dcc.Input(
                     id='conscientiousness-threshold',
                     type='number',
                     min=0,
                     max=1,
                     step=0.05,
                     value=0.299,
-                ),
-            ], md=6),
+                )),
+            ]),
+        ], bordered=True)], md=6),
             dbc.Col([
-                html.H6("Check actual config fetched by pipeline server"),
-                html.Div(id='output'),
+                html.H6("Double-check actual config fetched by pipeline server"),
+                html.Div(id='threshold-output-row'),
             ], md=6),
         ]),
     ]),
@@ -194,16 +165,21 @@ CLASSIFICATION_THRESHOLDS = dbc.Card([
 CLASSIFICATION_RESULT = [
     dbc.CardHeader(html.H4(children="Big5 Classification Results", className="lead")),
     dbc.CardBody(
-    html.Div(children=[
-        html.Div(id='cf-output-row', children='Calulated no classifications yet', 
-            style={"fontSize": 14, "margin-left": 6, "margin-top": 6},),
+    html.Div(className="row", children=[
+    
+        html.Div(id="cf-output-row", className="col-md-4"),
+        html.Div(id="eval-cf-output-row", className="col-md-4"),
+        html.Div(id="test-output-row", className="col-md-4"),
+        #html.Div(id='cf-output-row', children='Calulated no classifications yet', 
+       # style={"fontSize": 14, "margin-left": 6, "margin-top": 6},),
             ]))
+        
 ]
 
 WORDCLOUD_PLOT = [
     dbc.CardHeader(html.H4(children="Most frequently used words in conversation", className="lead")),
     dbc.Alert(
-        "Not enough data to render these plots, please adjust the filters",
+        "Not enough data to render these plots.",
         id="no-data-alert",
         color="warning",
         style={"display": "none"},
@@ -267,94 +243,94 @@ CURRENT_PROMPT = [
     )
 ]
 
-HEADER = dbc.Container(
-    [
-        dbc.Card(INTERVAL_COMPONENTS)
-    ]
-)
+HEADER = dbc.Container([
+        dcc.Interval(id='interval-component', interval=1000, n_intervals=0),
+        dcc.Interval(id='interval-component-15', interval=15000, n_intervals=0),
+        html.Div([dcc.Location(id='url', refresh=False)]),
+        dcc.Store(id='wordcloud-data-store'),
+        dcc.Store(id='current-user-text'),
+       # dcc.Store(id="classification-data-store"),
+       # dcc.Store(id="test-results-data-store"),
+])
 
 BODY = dbc.Container(
     [
-        #dbc.Row([dbc.Col(dbc.Card(MODEL_SELECT)),], style={"marginTop": 30}),
-        dbc.Row([dbc.Col(EVALUATION_STARTER),], style={"marginTop": 30}),
+        dbc.Row([dbc.Col(dbc.Card(CLASSIFICATION_THRESHOLDS)),], style={"marginTop": 30}),
+        dbc.Row([dbc.Col(dbc.Card(CLASSIFICATION_RESULT)),], style={"marginTop": 30}),
+        dbc.Row([dbc.Col(dbc.Card(CURRENT_PROMPT)),], style={"marginTop": 30}),
         dbc.Row([dbc.Col(dbc.Card(TSNE_PLOT)),], style={"marginTop": 30}),
         dbc.Row([dbc.Col(dbc.Card(SENTIMENT_OUTPUT)),], style={"marginTop": 30}),
         dbc.Row([dbc.Col(dbc.Card(FEATURE_OUTPUT)),], style={"marginTop": 30}),
         dbc.Card(WORDCLOUD_PLOT, style={"marginTop": 30}),
-        dbc.Row([dbc.Col(dbc.Card(CLASSIFICATION_THRESHOLDS)),], style={"marginTop": 30}),
-        dbc.Row([dbc.Col(dbc.Card(CLASSIFICATION_RESULT)),], style={"marginTop": 30}),
-        dbc.Row([dbc.Col(dbc.Card(CURRENT_PROMPT)),], style={"marginTop": 30, "marginBottom": 30}),
-       # dbc.Row([dbc.Col([])], style={"marginTop": 50}),
+        dbc.Row([dbc.Col(EVALUATION_STARTER),], style={"marginTop": 30, "marginBottom": 30}),
+        dbc.Row([dbc.Col(html.Div(id="test-content", children=[
+            html.Div(children=[
+                    html.Strong("Sender_ID: "), html.Span(id="session-id-field", children=[])
+                ])
+        ]))], style={"marginBottom": 30})
     ],
     className="mt-12",
 )
 
 server = FastAPI()
+#server.add_middleware(SessionMiddleware, secret_key=secrets.token_hex(16))
 app = dash.Dash(external_stylesheets=[dbc.themes.BOOTSTRAP], url_base_pathname='/dashboard/')
 app.layout = html.Div(children=[HEADER, BODY])
-
-"""
-RabbitMQ send and receive functions.
-Since we need intervals and callback functions in dash to pull the information,
-we need to create a separate rabbit connection for each pull. 
-This is not efficient, however, otherwise we would need 
-to implement Threading and we dont have unlimited time. 
-"""
-def send_to_rabbitmq(data, queue):
-    connection = pika.BlockingConnection(pika.ConnectionParameters(rabbit_host, rabbit_port, '/', rabbit_credentials))
-    channel = connection.channel()
-
-    exchange_name = queue + '-exchange'
-    routing_key = queue + '-routing-key'
-
-    channel.exchange_declare(exchange=exchange_name, exchange_type='direct')
-    channel.basic_publish(exchange=exchange_name, routing_key=routing_key, body=data)
-
-def receive_rabbitmq(queue):
-    connection = pika.BlockingConnection(pika.ConnectionParameters(rabbit_host, rabbit_port, '/', rabbit_credentials))
-    channel = connection.channel()
-    exchange_name = queue + '-exchange'
-    queue_name = queue + '-queue'
-    routing_key = queue + '-routing-key'
-    channel.exchange_declare(exchange=exchange_name, exchange_type='direct')
-    channel.queue_declare(queue=queue_name)
-    channel.queue_bind(exchange=exchange_name, queue=queue_name, routing_key=routing_key)
-    method_frame, header_frame, body = channel.basic_get(queue=queue_name, auto_ack=True)
-    connection.close()
-    return body
-
 
 
 @app.callback(
     Output("eval-button", "disabled"),
     Output("eval-alert", "style"),
-    Output("output-div", "children"),
+    Output('eval-conversation-html', 'children', allow_duplicate=True),
     Input("eval-button", "n_clicks"),
+    prevent_initial_call=True
 )
 def eval_button_callback(n_clicks):
+    print("Eval button clicked")
     if not n_clicks:
-        return False, {"display": "none"}, ""
+        return [False, {"display": "none"}, ""]
     
     time.sleep(2) # wait for 2 seconds
     return asyncio.run(start_eval_run(n_clicks)) # execute start_eval_run coroutine after 2 seconds
 
 async def start_eval_run(n_clicks):
     if not n_clicks:
-        return False, {"display": "none"}, ""
+        return [False, {"display": "none"}, ""]
 
-    bot = evaluations.RasaSocketIOBot()
-    await bot.connect("https://joel-schlotthauer.com/rasax/socket.io/")
-    await bot.start_conversation()
-    conversation_result = bot.conversator.memory.buffer
-    conversation_text = "\n".join(conversation_result)
-    
-    return True, {"display": "block"}, dcc.Textarea(
-        value=conversation_text,
-        readOnly=True,
-        className="conversation-text",
-        style={"width": "100%", "height": "calc(100vh - 200px)", "resize": "none"},
-    )
+    bot = evaluations.RasaChatClient("https://joel-schlotthauer.com", socketio_path="/rasax/socket.io/")
+    bot.connect()
+    bot.utter("/start_conversation")
 
+    return [False, {"display": "none"}, ""]
+
+
+@app.callback(
+    Output('eval-conversation-html', 'children'),
+    [Input('interval-component', 'n_intervals'),
+     Input('session-id-field', 'children')],
+    [State('eval-conversation-html', 'children')],
+)
+def update_eval_conversation(n, session_id, current_children):
+    children = [] if not current_children else current_children
+    body = receive_rabbitmq(queue="eval_bot_message", sender_id=session_id)
+    if body:
+        message = json.loads(body)
+        for key, msg in message.items():
+            print(f"RECEIVED {key}: {msg}")
+            if key == "human_bot_uttered":
+                key_text = "Human AI"
+            elif key == "ai_bot_uttered":
+                key_text = "Bot AI"
+            else:
+                key_text = key
+            line = html.Div(children=[
+                html.B(key_text + ": "),
+                html.Span(msg),
+            ])
+            children.append(line)
+        return children
+    else:
+        raise PreventUpdate
 
 
 """
@@ -372,11 +348,16 @@ MODEL SELECT
 """
 TSNE PLOT
 """
-@app.callback(dash.dependencies.Output('scatter-plot', 'figure'),
-              [Input('interval-component', 'n_intervals')])
-def update_tsne_plot(n):
-    global previous_tsne_fig, x,y 
-    body = receive_rabbitmq("embeddings")
+@app.callback(
+    dash.dependencies.Output('scatter-plot', 'figure'),
+    [dash.dependencies.Input('interval-component', 'n_intervals'), 
+     dash.dependencies.Input('session-id-field', 'children')],
+    [dash.dependencies.State('scatter-plot', 'figure')]
+)
+def update_tsne_plot(n, sender_id, previous_tsne_fig):
+    if not previous_tsne_fig:
+        previous_tsne_fig = {}
+    body = receive_rabbitmq(queue="embeddings", sender_id=sender_id)
     # If a message was received, decode and return the message    
     if body:
         data = json.loads(body)
@@ -393,43 +374,44 @@ def update_tsne_plot(n):
         # Create a scatter plot using Plotly Express
         trace = go.Scatter(x=x, y=y, text=words, mode='markers', marker=dict(size=10))
         fig = go.Figure(data=[trace])
-        fig.update_layout(title='TSNE Embeddings')
+        fig.update_layout()
         # store the current data in the previous_tsne_fig variable
-        previous_tsne_fig = fig
+        #previous_tsne_fig = fig.to_dict()
 
     else:
         # If there is no new data, use the previous_tsne_fig to update the plot
         if previous_tsne_fig:
             # Create a scatter plot using Plotly Express
             fig = previous_tsne_fig
+            #fig = go.Figure.from_dict(previous_tsne_fig)
         else: 
             fig = go.Figure()
+
     return fig
 
 
 @app.callback(
     Output('sentiment-output-row', 'children'),
-    [Input('interval-component', 'n_intervals')]
+    [Input('interval-component', 'n_intervals'),
+     Input('session-id-field', 'children')],
+    [State('sentiment-output-row', 'children')]
 )
-def update_sentiment(n):
-    global previous_sentiment 
-    body = receive_rabbitmq("sentiment")
+def update_sentiment(n, sender_id, previous_sentiment):
+    body = receive_rabbitmq(queue="sentiment", sender_id=sender_id)
     # If a message was received, decode and return the message  
     if body:
         data = json.loads(body)
         sentiment = data['sentiment']
-        #sentiment = json.dumps(sentiment)
         sentiment_string = f"""Sentiments in Percent:
         Negative: {round(sentiment[0]*100,2)} % |
         Neutral: {round(sentiment[1]*100,2)} % |
         Positive: {round(sentiment[2]*100,2)} %
         """
-        #sentiment_html = [html.P(sentiment)]
+        # Update the State variable with the new sentiment value
         previous_sentiment = sentiment_string
     else:
-        # If there is no new data, use the previous_tsne_fig to update the plot
+        # If there is no new data, use the previous sentiment value
         if previous_sentiment:
-            # Create a scatter plot using Plotly Express
             sentiment_string = previous_sentiment
         else: 
             sentiment_string = "Calculated no sentiment yet"
@@ -437,11 +419,12 @@ def update_sentiment(n):
 
 @app.callback(
     Output('features-output-row', 'children'),
-    [Input('interval-component', 'n_intervals')]
+    [Input('interval-component', 'n_intervals'),
+     Input('session-id-field', 'children')],
+    [State('features-output-row', 'children')]
 )
-def update_features(n):
-    global previous_features
-    body = receive_rabbitmq("features")
+def update_features(n, sender_id, previous_features):
+    body = receive_rabbitmq(queue="features", sender_id=sender_id)
     # If a message was received, decode and return the message  
     if body:
         data = json.loads(body)
@@ -449,11 +432,11 @@ def update_features(n):
         features_html = []
         for feature in features:
             features_html.append(html.Strong(children=feature.title(),
-                                         style={"fontSize": 12, "fontWeight": "bold", "margin-left": 6, "margin-top": 6}, className="lead"),)
+                                         style={"fontSize": 14, "fontWeight": "bold", "margin-left": 6, "margin-top": 6}, className="lead"),)
             features_html.append(html.P(children="Num of Features: " + str(features[feature]["num_of_features"]),
-                                        style={"fontSize": 14, "margin-left": 6, "margin-top": 6},),)
+                                        style={"fontSize": 12, "margin-left": 6, "margin-top": 6},),)
             features_html.append(html.P(children="Features: " + ', '.join(features[feature]["feature_names"]),
-                                        style={"fontSize": 14, "margin-left": 6, "margin-top": 6},),)
+                                        style={"fontSize": 12, "margin-left": 6, "margin-top": 6},),)
         previous_features = features_html
     else:
         # If there is no new data, use the previous_tsne_fig to update the plot
@@ -462,12 +445,59 @@ def update_features(n):
             features_html = previous_features
         else: 
             features_html = [html.H4(children="No features calculated yet", 
-                                     style={"fontSize": 14, "margin-left": 6, "margin-top": 6},),]
+                                     style={"font-weight": "normal", "fontSize": 14, "margin-left": 6, "margin-top": 6},),]
     return features_html
+
+
+# Update current_user_text
+@app.callback(
+    Output('current-user-text', 'data'),
+    [Input('interval-component', 'n_intervals'),
+     Input('session-id-field', 'children')],
+    State('current-user-text', 'data')
+)
+def update_current_user_text(n, sender_id, current_user_text):
+    # Connect to RabbitMQ queue
+    body = receive_rabbitmq(queue="text", sender_id=sender_id)
+
+    if body:
+        text = json.loads(body)['conversation_history']
+        return text
+    else:
+        raise PreventUpdate
+
 
 """
 WORDCLOUD
 """
+
+# Store wordcloud-related data
+@app.callback(
+    Output("wordcloud-data-store", "data"),
+    [Input('interval-component-15', 'n_intervals'),
+     Input('session-id-field', 'children')],
+    State("wordcloud-data-store", "data"),
+    State('current-user-text', 'data')
+)
+def store_wordcloud_data(n, sender_id, stored_data, current_user_text):
+    # Connect to RabbitMQ queue
+    if current_user_text:
+        wordcloud, frequency_figure, treemap = plotly_wordcloud(current_user_text)
+        alert_style = {"display": "none"}
+        if (wordcloud == {}) or (frequency_figure == {}) or (treemap == {}):
+            alert_style = {"display": "block"}
+
+        return {
+            "previous_wordcloud": wordcloud,
+            "previous_fq_fig": frequency_figure,
+            "previous_tm": treemap,
+            "previous_alert": alert_style,
+            "current_user_text": current_user_text
+        }
+    else:
+        raise PreventUpdate
+
+# Update wordcloud callback
 @app.callback(
     [
         Output("bank-wordcloud", "figure"),
@@ -475,50 +505,37 @@ WORDCLOUD
         Output("bank-treemap", "figure"),
         Output("no-data-alert", "style"),
     ],
-    [Input('interval-component-15', 'n_intervals')]
+    [Input('interval-component-15', 'n_intervals')],
+    State('session-id-field', 'children'),
+    State("wordcloud-data-store", "data"),
 )
-def update_wordcloud(n):
-    global previous_wordcloud, previous_fq_fig, previous_alert, previous_tm, current_user_text
-    # Connect to RabbitMQ queue
-    body = receive_rabbitmq("text")
+def update_wordcloud(n, sender_id, stored_data):
+    if not stored_data:
+        raise PreventUpdate
 
-    # If a message was received, decode and return the message
-    if body:
-        text = json.loads(body)['conversation_history']
-        current_user_text = text
-        wordcloud, frequency_figure, treemap = plotly_wordcloud(text)
-        alert_style = {"display": "none"}
-        if (wordcloud == {}) or (frequency_figure == {}) or (treemap == {}):
-            alert_style = {"display": "block"}
-        previous_wordcloud = wordcloud
-        previous_fq_fig = frequency_figure
-        previous_tm = treemap
-        previous_alert = alert_style
-    else:
-        # If there is no new data, use the previous_wordcloud
-        if previous_wordcloud and previous_fq_fig and previous_alert and previous_tm:
-            # Create wordcloud
-            wordcloud = previous_wordcloud
-            frequency_figure = previous_fq_fig
-            treemap = previous_tm
-            alert_style = previous_alert
-        else:
-            wordcloud = frequency_figure = treemap = previous_fq_fig = {}
-            alert_style = {"display": "block"}
-    #print("redrawing conversation-wordcloud...done")
+    wordcloud = stored_data["previous_wordcloud"]
+    frequency_figure = stored_data["previous_fq_fig"]
+    treemap = stored_data["previous_tm"]
+    alert_style = stored_data["previous_alert"]
+
     return (wordcloud, frequency_figure, treemap, alert_style)
 
 
-# Define the callback function to update the output
 @app.callback(
-    Output('output', 'children'),
+    Output('threshold-output-row', 'children'),
     [Input('openness-threshold', 'value'),
      Input('conscientiousness-threshold', 'value'),
      Input('extraversion-threshold', 'value'),
      Input('agreeableness-threshold', 'value'),
-     Input('neuroticism-threshold', 'value')]
+     Input('neuroticism-threshold', 'value'),
+     Input('session-id-field', 'children')],
 )
-def update_output(openness_threshold, conscientiousness_threshold, extraversion_threshold, agreeableness_threshold, neuroticism_threshold):
+def update_thresholds(openness_threshold, 
+                  conscientiousness_threshold, 
+                  extraversion_threshold, 
+                  agreeableness_threshold, 
+                  neuroticism_threshold, 
+                  sender_id):
     threshold_json =  {
         "neuroticism": neuroticism_threshold,
         "extraversion": extraversion_threshold,
@@ -526,9 +543,9 @@ def update_output(openness_threshold, conscientiousness_threshold, extraversion_
         "agreeableness": agreeableness_threshold,
         "conscientiousness": conscientiousness_threshold
     }
-    send_to_rabbitmq(json.dumps(threshold_json), "thresholds")
+    send_to_rabbitmq(json.dumps(threshold_json), queue="thresholds", sender_id=sender_id)
 
-    body = receive_rabbitmq("actual-thresholds")
+    body = receive_rabbitmq(queue="actual-thresholds", sender_id=sender_id)
 
     if body:
         actual_thresholds = json.loads(body)
@@ -553,72 +570,123 @@ def update_output(openness_threshold, conscientiousness_threshold, extraversion_
         return html.Div(html.Span("Fetched no real configuration from pipeline server yet."))
 
 
+def get_classification_html(classification_data, current_user_text):
+    if classification_data:
+        classes = classification_data['classes']
+        probas = classification_data['probabilities']
+        classification_html = [html.H6(children="Pipeline Classification:", style={"fontSize": 16})]
+        for cs in classes:
+            classification_html.extend([
+                html.Strong(children=cs.title(), style={"display": "inline", "fontSize": 14, "fontWeight": "bold"}, className="lead"),
+                html.P(children=f"CF{classes[cs]}, Proba: [{round(float(probas[cs][0]), 2)}]", style={"fontSize": 12, "font-weight": "lighter"})
+            ])
+        return html.Div(classification_html)
+    else:
+        return html.Div("No pipeline classification data")
+
+
+def get_test_results_html(test_results_data):
+    if test_results_data:
+        test_results_html = [html.H6(children="Result of actual NEO-FFI-Test:", style={"fontSize": 16})]
+        for key, data in test_results_data.items():
+            test_results_html.extend([
+                html.Strong(children=key.title(), style={"display": "inline", "fontSize": 14, "fontWeight": "bold"}, className="lead"),
+                html.P(children=f"{data}", style={"fontSize": 12, "font-weight": "lighter"})
+            ])
+        return html.Div(test_results_html)
+    else:
+        return html.Div("No test results data")
+
+
+def get_eval_classification(current_user_text):
+    return html.Div("No evaluation classification available") # Currently out of service
+    if current_user_text:
+        eval_classification_html = [html.H6(children="Evaluation Classification by gpt-3.5-turbo:", style={"fontSize": 16})]
+        eval_classifier = evaluations.BigFiveClassificationEvaluator()
+        eval_cf_res = eval_classifier.classify(current_user_text)
+        cf_lines = eval_cf_res.split('\n')
+        for line in cf_lines:
+            eval_classification_html.append(html.P(children=line, style={"fontSize": 14, "font-weight": "lighter"}))
+            return html.Div(eval_classification_html)
+        else:
+            return html.Div("No evaluation classification available")
+
+
 @app.callback(
     Output('cf-output-row', 'children'),
-    [Input('interval-component', 'n_intervals')]
+    Output('eval-cf-output-row', 'children'),
+    Output('test-output-row', 'children'),
+    [Input('interval-component', 'n_intervals'),
+     Input('session-id-field', 'children')],
+    State('cf-output-row', 'children'),
+    State('eval-cf-output-row', 'children'),
+    State('test-output-row', 'children'),
+    State('current-user-text', 'data')
 )
-def update_classification(n):
-    global previous_classification 
-    body = receive_rabbitmq("classification")
-    # If a message was received, decode and return the message  
-    if body:        
-        data = json.loads(body)
-        classes = data['classes']
-        probas = data['probabilities']
-        overall_classification_html = []
-        classification_html = []
-        classification_html.append(html.H6(children="Pipeline Classification:", 
-                                           style={"fontSize": 14}, className="lead"))
-        for cs in classes:
-            classification_html.append(html.Strong(children=cs.title(),
-                                         style={"display": "inline", "fontSize": 14, "fontWeight": "bold", }, className="lead"),)
-            classification_html.append(html.P(children=f"CF{classes[cs]}, Proba: [{round(float(probas[cs][0]),2)}]",
-                                        style={"fontSize": 12, "font-weight": "lighter"},),)
-        print(classes)
-        if (current_user_text):
-            gpt_classification_html = []
-            gpt_classification_html.append(html.H6(children="Evaluation Classification by gpt-3.5-turbo:", 
-                                        style={"fontSize": 12}, className="lead"))
-            gpt35_classifier = evaluations.BigFiveClassificationEvaluator()
-            gpt35_cf_res = gpt35_classifier.classify(current_user_text)
-            print(gpt35_cf_res)
-            cf_lines = gpt35_cf_res.split('\n')
-            print(cf_lines)
-            for line in cf_lines:
-                gpt_classification_html.append(html.P(children=line, style={"fontSize": 14, "font-weight": "lighter"}))
-            #gpt_classification_html.append(html.P(children=[html.Strong(f"{cf_lines[i].split(':')[0]}: ") + f"{cf_lines[i].split(':')[1]}<br/>" if i < 5 else cf_lines[i] for i in range(len(cf_lines))],
-            #                            style={"fontSize": 14, "margin-left": 6, "margin-top": 6}, className="lead"))
-            classification_col1 = html.Div(classification_html)
-            classification_col2 = html.Div(gpt_classification_html)
-            overall_classification_html = dbc.Row([   dbc.Col(classification_col1, width=6),    dbc.Col(classification_col2, width=6)])
-        else: 
-            overall_classification_html = html.Div(classification_html)
-        previous_classification = overall_classification_html
+def update_classification(n, sender_id, previous_classification, prev_eval_cf, prev_test_results, current_user_text):
+    classification_body = receive_rabbitmq(queue="classification", sender_id=sender_id)
+    test_results_body = receive_rabbitmq(queue="big_five_test_results", sender_id=sender_id)
+
+    return_values = [
+        "No classification data available", # CF Output row
+        "No evaluation classification data available", # Evaluation Classification row
+        "No test results available" # Test result row of NEO-FFI-30-Test
+    ]
+
+    if classification_body: 
+        classification_data = json.loads(classification_body) if classification_body else None   
+        if classification_data:
+            classification_html = get_classification_html(classification_data, current_user_text)
+            return_values[0] = classification_html
     else:
-        # If there is no new data, use the previous_tsne_fig to update the plot
         if previous_classification:
-            # Create a scatter plot using Plotly Express
-            overall_classification_html = previous_classification
-        else: 
-            overall_classification_html = "Calculated no classification yet"
-    return overall_classification_html
+            return_values[0] = previous_classification
+
+    if test_results_body:
+        test_results_data = json.loads(test_results_body) if test_results_body else None     
+        if test_results_data:
+            test_results_html = get_test_results_html(test_results_data)
+            return_values[1] = test_results_html
+    else: 
+        if prev_eval_cf:
+            return_values[1] = prev_eval_cf
+
+    if current_user_text:
+        current_user_text_html = get_eval_classification(current_user_text)
+        return_values[2] = current_user_text_html
+    else:
+        if prev_test_results:
+            return_values[2] = prev_test_results
+        
+    #print(return_values)
+    
+    return return_values
+
+
 
 @app.callback(
     Output('prompt-output-row', 'children'),
-    [Input('interval-component', 'n_intervals')]
+    [Input('interval-component', 'n_intervals'),
+     Input('session-id-field', 'children')],
+     [State('prompt-output-row', 'children')]
 )
-def update_prompt(n):
-    global previous_prompt
-    body = receive_rabbitmq("prompt")
+def update_prompt(n, sender_id, previous_prompt):
+    body = receive_rabbitmq(queue="prompt", sender_id=sender_id)
     # If a message was received, decode and return the message  
     if body:        
         data = json.loads(body)
         token_size = data['token_size']
         prompt_lines = data['prompt'].split('\n')
-        prompt_html = [html.P(line) for line in prompt_lines]
-        prompt_html = [html.P(f"Current Token-Size: {token_size}")] + prompt_html
+        prompt_html = [html.P(f"Current Token-Size: {token_size}")]
+        for line in prompt_lines:
+            prompt_html.append(html.Span(line))
+            prompt_html.append(html.Br())
+        prompt_html = html.Pre(prompt_html)
+
+        #prompt_html = [html.P(line) for line in prompt_lines]
         prompt_html = html.Div(prompt_html)
         previous_prompt = prompt_html
+
     else:
         # If there is no new data, use the previous_tsne_fig to update the plot
         if previous_prompt:
@@ -723,5 +791,29 @@ def plotly_wordcloud(text):
     treemap_figure = {"data": [treemap_trace], "layout": treemap_layout}
     return wordcloud_figure_data, frequency_figure_data, treemap_figure
 
+
+
+# @app.callback([Output('session-id-field', 'children'),
+#               Output('session-id-storage', 'data')],
+#              [Input("url", "search")],
+#              [State('session-id-storage', 'data')])
+
+
+
+# Get Rasa Session ID via GET
+@app.callback(Output('session-id-field', 'children'),
+              #Output('session-id-storage', 'data'),],
+             [Input("url", "search")],
+             State('session-id-field', 'children'))
+def fetch_session_id(params, children):
+    try:
+        parsed = urllib.parse.urlparse(params)
+        parsed_dict = urllib.parse.parse_qs(parsed.query)
+        sender_id = parsed_dict['session_id'][0]
+        print(f"DASH: {sender_id}")
+
+        return sender_id
+    except Exception as e:
+        return "An error occurred fetching session id: {e}"
 
 server.mount('/', WSGIMiddleware(app.server))

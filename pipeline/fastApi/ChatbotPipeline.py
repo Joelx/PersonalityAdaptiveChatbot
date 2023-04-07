@@ -31,49 +31,13 @@ from langchain.callbacks.base import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 import urllib.request
 from haystack import Pipeline
-import requests
-import pika
-#import config
+from RabbitMQ import *
 
 # We want to handle relative paths like Django does it:
 # Define this as the root dir of the pipeline project
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__)) 
 MODEL_PATH = ROOT_DIR + "/models/"
 
-os.environ["OPENAI_API_KEY"] = "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"
-# rabbit_username = os.environ['RABBITMQ_USERNAME']
-# rabbit_password = os.environ['RABBITMQ_PASSWORD']
-# erlang_cookie = os.environ['RABBITMQ_ERLANG_COOKIE']
-# rabbit_host = "10.1.81.44"
-rabbit_username = "guest"
-rabbit_password ="guest"
-rabbit_host = "localhost"
-rabbit_port = 5672
-rabbit_credentials = pika.PlainCredentials(rabbit_username, rabbit_password)
-
-
-def send_to_rabbitmq(data, queue):
-    connection = pika.BlockingConnection(pika.ConnectionParameters(rabbit_host, rabbit_port, '/', rabbit_credentials))
-    channel = connection.channel()
-
-    exchange_name = queue + '-exchange'
-    routing_key = queue + '-routing-key'
-
-    channel.exchange_declare(exchange=exchange_name, exchange_type='direct')
-    channel.basic_publish(exchange=exchange_name, routing_key=routing_key, body=data)
-
-def receive_rabbitmq(queue):
-    connection = pika.BlockingConnection(pika.ConnectionParameters(rabbit_host, rabbit_port, '/', rabbit_credentials))
-    channel = connection.channel()
-    exchange_name = queue + '-exchange'
-    queue_name = queue + '-queue'
-    routing_key = queue + '-routing-key'
-    channel.exchange_declare(exchange=exchange_name, exchange_type='direct')
-    channel.queue_declare(queue=queue_name)
-    channel.queue_bind(exchange=exchange_name, queue=queue_name, routing_key=routing_key)
-    method_frame, header_frame, body = channel.basic_get(queue=queue_name, auto_ack=True)
-    connection.close()
-    return body
 
 class ConversationHistoryRetreiver(BaseComponent):    
     outgoing_edges = 1
@@ -86,10 +50,15 @@ class ConversationHistoryRetreiver(BaseComponent):
         print("--------- Query ---------")
         print(query)
         user_conversation_history = self._parse_user_conversation_history(query)
-        output={"conversation_history": user_conversation_history}
+        sender_id = query[-1]["sender_id"] # Sender id is the last element
+        print(f"SENDER_ID: {sender_id}")
+        output={
+            "conversation_history": user_conversation_history,
+            "sender_id": sender_id
+        }
 
         # Send to dashboard
-        send_to_rabbitmq(json.dumps(output), "text")
+        send_to_rabbitmq(json.dumps(output), queue="text", sender_id=sender_id)
 
         return output, "output_1"
     
@@ -118,11 +87,12 @@ class TfidfVectorizerNode(BaseComponent):
             print(f"Error loading vectorizer: {e}")
             return {}        
     
-    def run(self, conversation_history: Text) -> Dict[Text, Document]:
+    def run(self, conversation_history: Text, sender_id: str) -> Dict[Text, Document]:
         idf_embeddings = self._tfidf_embeddings()
         output={
             "conversation_history": conversation_history,
-            "idf_embeddings": idf_embeddings
+            "idf_embeddings": idf_embeddings,
+            "sender_id": sender_id
         }
         return output, "output_1"
 
@@ -142,6 +112,7 @@ class FasttextVectorizerNode(BaseComponent):
     def __init__(self, model_path: str = MODEL_PATH + "embeddings/wiki.de.vec.magnitude", embedding_dim: int = 300):
         self.embedding_dim = embedding_dim
         self.model_path = model_path
+        self.sender_id = ""
         self.model_url = "https://drive.google.com/uc?id=10ILYDkEFnlrExQwo7_iu2sL2le43Xlcp&export=download&confirm=t&uuid=92d36780-86fc-4fae-b03c-f05653d01849"
         try:
             # Check if the model file exists in the current directory
@@ -171,13 +142,17 @@ class FasttextVectorizerNode(BaseComponent):
 
 
         embeddings = {"words": words, "vectors": w2v_vectors.tolist()}
-        send_to_rabbitmq(json.dumps(embeddings), "embeddings")
+        send_to_rabbitmq(json.dumps(embeddings), queue="embeddings", sender_id=self.sender_id)
 
         return np.array(vectors)
 
-    def run(self, conversation_history: Text, idf_embeddings: Dict[Text, Dict[str, float]]) -> Dict[str, np.ndarray]:
+    def run(self, conversation_history: Text, idf_embeddings: Dict[Text, Dict[str, float]], sender_id: str) -> Dict[str, np.ndarray]:
+        self.sender_id = sender_id
         vectors = self._tfidf_w2v(conversation_history, idf_embeddings)
-        output={"vectors": vectors}
+        output={
+            "vectors": vectors,
+            "sender_id": sender_id
+        }
         return output, "output_1"    
     
     def run_batch(self, conversation_history: Text, idf_embeddings: Dict[str, Dict[str, float]]) -> Dict[str, np.ndarray]:
@@ -209,9 +184,12 @@ class NormalizerNode(BaseComponent):
             print(f"Error loading vectorizer: {e}")
             return {}              
     
-    def run(self, vectors: np.array(float)) -> Dict[str, np.ndarray]:
+    def run(self, vectors: np.array(float), sender_id: str) -> Dict[str, np.ndarray]:
         normalized_vectors = self._normalize(vectors)
-        output={f"n{self.input}": normalized_vectors}
+        output={
+            f"n{self.input}": normalized_vectors,
+            "sender_id": sender_id
+        }
         #print(output)
         return output, "output_1"
     
@@ -228,6 +206,7 @@ class BigFiveFeaturizer(BaseComponent):
         self.model = AutoModelForSequenceClassification.from_pretrained(self.model_name_or_path)
         self.model.save_pretrained(MODEL_PATH + self.model_name_or_path)
         self.tokenizer.save_pretrained(MODEL_PATH + self.model_name_or_path)
+        self.sender_id = ""
         
     def _preprocess(self, text):
         new_text = []
@@ -247,7 +226,7 @@ class BigFiveFeaturizer(BaseComponent):
 
         # Send to dashboard
         sentiment_scores = {"sentiment": scores.tolist()}
-        send_to_rabbitmq(json.dumps(sentiment_scores), "sentiment")
+        send_to_rabbitmq(json.dumps(sentiment_scores), queue="sentiment", sender_id=self.sender_id)
 
         return np.array([scores])
             
@@ -327,9 +306,13 @@ class BigFiveFeaturizer(BaseComponent):
             text_features))
         return features
     
-    def run(self, conversation_history: Text) -> np.hstack:
+    def run(self, conversation_history: Text, sender_id: str) -> np.hstack:
+        self.sender_id = sender_id
         vectors= self._featurize(conversation_history)
-        output={"vectors": vectors}
+        output={
+            "vectors": vectors,
+            "sender_id": sender_id
+        }
         return output, "output_1"
     
     def run_batch(self, conversation_history: Text) -> Dict[str, Document]:
@@ -367,10 +350,12 @@ class ConcatenationNode(BaseComponent):
         return combined_features, feature_names
     
     def run(self, inputs: List[dict]) -> Dict[str, np.ndarray]:
+        sender_id = inputs[0]["sender_id"]
         concatenated_features, feature_names = self._concatenate_features(inputs[0]["nfeatures"], inputs[1]["nembeddings"])
         output={
             "concatenated_features": concatenated_features,
-            "feature_names": feature_names   
+            "feature_names": feature_names,
+            "sender_id": sender_id   
         }
         print("\n----------------------")
         print(output)
@@ -387,6 +372,7 @@ class BigFiveFeatureSelectionNode(BaseComponent):
     def __init__(self, model_paths: Dict[str, str]):
         self.model_paths = model_paths
         self.selectors = {}
+        self.sender_id = ""
 
         for dimension, model_path in self.model_paths.items():
             try:
@@ -413,11 +399,12 @@ class BigFiveFeatureSelectionNode(BaseComponent):
                 print(f"Error loading selector: {e}")
         print(feature_json)
         # Send to dashboard
-        send_to_rabbitmq(json.dumps(feature_json), "features")
+        send_to_rabbitmq(json.dumps(feature_json), queue="features", sender_id=self.sender_id)
 
         return selected_features             
     
-    def run(self, concatenated_features: np.array(float), feature_names: List[str]) -> Dict[str, np.ndarray]:
+    def run(self, concatenated_features: np.array(float), feature_names: List[str], sender_id: str) -> Dict[str, np.ndarray]:
+        self.sender_id = sender_id
         selected_features = self._select_features(concatenated_features, feature_names)
         output={"selected_features": selected_features}
         return output, "output_1"
@@ -432,6 +419,7 @@ class BigFiveClassifierNode(BaseComponent):
         self.model_paths = model_paths
         self.thresholds = thresholds
         self.models = {}
+        self.sender_id = ""
 
         for dimension, model_path in self.model_paths.items():
             try:
@@ -446,12 +434,12 @@ class BigFiveClassifierNode(BaseComponent):
         predicted_proba = {}
 
         # Get threshold config from dashboard
-        body = receive_rabbitmq("thresholds")
+        body = receive_rabbitmq(queue="thresholds", sender_id=self.sender_id)
         if body:
             self.thresholds = json.loads(body)
             print("------ THRESHOLDS ------------")
             print(self.thresholds)
-        send_to_rabbitmq(json.dumps(self.thresholds), "actual-thresholds")
+            send_to_rabbitmq(json.dumps(self.thresholds), queue="actual-thresholds", sender_id=self.sender_id)
 
         for dimension, features in selected_features.items():
             try:
@@ -474,15 +462,19 @@ class BigFiveClassifierNode(BaseComponent):
             else:
                 predictions_json[key] = value.tolist()
         # Send to dashboard
-        send_to_rabbitmq(json.dumps(predictions_json), "classification")
+        send_to_rabbitmq(json.dumps(predictions_json), queue="classification", sender_id=self.sender_id)
         
         return predictions
 
-    def run(self, selected_features: Dict[str, np.ndarray]) -> Dict[str, Dict[str, np.ndarray]]:
+    def run(self, selected_features: Dict[str, np.ndarray], sender_id: str) -> Dict[str, Dict[str, np.ndarray]]:
+        self.sender_id = sender_id
         predictions = self._predict(selected_features)
         print("----------- Predictions --------------")
         print(predictions)
-        output={"predictions": predictions}
+        output={
+            "predictions": predictions,
+            "sender_id": sender_id
+        }
         return output, "output_1"
     
     def run_batch(self, selected_features: np.array(float)) -> Dict[str, np.ndarray]:
@@ -496,7 +488,7 @@ class BigFiveResponseGenerator(BaseComponent):
 As a language model, Cleo is able to generate human-like text based on the input it receives, allowing it to engage in natural-sounding conversations and provide responses that are coherent and helpful.
 
 Cleo begins by chit-chat and by asking the user how they feel. Cleo has a very nice and appreciative conversation and remains empathetic and friendly at all time. Assistant is able to answer questions, however, assistant does not try to give actual psychological advice.
-If Cleo does not know the answer to a question, it truthfully says it does not know.
+If Cleo does not know the answer to a question, she truthfully says she does not know.
 
 Cleo is constantly learning and improving and tries to get to know the users better and better to adapt to their needs.
 For that, Cleo is an expert in psychology and soziology. It is specialized on behaviour and personality trait recognition from speech via linguistic cues. 
@@ -524,8 +516,8 @@ Cleo:"""
                               callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]))
         self.MAX_TOKEN_SIZE = 4096
         self.conversation = LLMChain(llm=self.llm, prompt=self.chat_prompt, verbose=True)
+        self.sender_id = ""
 
-    
     def _count_tokens(self, text: Text) -> int:
         tokens = re.findall(r'\S+|\n', text)
         print("------ Token Size of current Prompt ------")
@@ -535,7 +527,7 @@ Cleo:"""
 
     def _parse_full_conversation(self, conversation: List[Dict[str, str]]) -> Tuple[str, str]:
         current_user_input = [event['message'] for event in reversed(conversation) if event.get('event') == 'user'][0]
-        conversation_text = '\n'.join([f"{event['event'].title()}: {event['message']}" for event in conversation])
+        conversation_text = '\n'.join([f"{event['event'].title()}: {event['message']}" for event in conversation if event.get('message')])
         conversation_text = conversation_text.rsplit('\nUser:', 1)[0]
         return conversation_text, current_user_input
 
@@ -545,6 +537,7 @@ Cleo:"""
         return big_five_string        
         # Inputs: predictions: Dict[str, Dict[str, np.ndarray]], query: str
     def run(self, inputs: List[dict]) -> Dict[str, Dict[str, np.ndarray]]:   
+        self.sender_id = "12345"
         print("---------- INPUTS ------------")
         print(inputs)      
         big_five_string = self._parse_big_five_precictions(inputs[1]['predictions']['classes'])
@@ -561,9 +554,12 @@ Cleo:"""
         }
         
         # Send to dashboard
-        send_to_rabbitmq(json.dumps(json_prompt), "prompt")
+        send_to_rabbitmq(json.dumps(json_prompt), queue="prompt", sender_id=self.sender_id)
         
-        output = {'response': res}
+        output = {
+            'response': res,
+            'sener_id': self.sender_id
+        }
         return output, "output_1"
     
     def run_batch(self, predictions: Dict[str, Dict[str, np.ndarray]]) -> Dict[str, np.ndarray]:

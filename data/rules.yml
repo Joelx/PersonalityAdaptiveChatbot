@@ -15,6 +15,16 @@ rules:
   - action: test_form
   - active_loop: test_form
 
+- rule: Submit Test
+  condition:
+  - active_loop: test_form
+  steps:
+  - action: test_form
+  - active_loop: null
+  - slot_was_set:
+    - requested_slot: null
+  - action: action_submit_test
+
 - rule: Begin free conversation
   condition:
   - active_loop: null

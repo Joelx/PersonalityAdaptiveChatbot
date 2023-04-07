@@ -7,6 +7,8 @@ intents:
 
 actions:
   - call_haystack
+  - validate_test_form
+  - action_submit_test
 
 session_config:
   session_expiration_time: 0
@@ -15,7 +17,7 @@ session_config:
 
 responses:
   utter_greet:
-  - text: "Hallo 😊!"
+  - text: "Hallo 😊! Ich bin Cleo, dein virtueller Assistent. Ich versuche mich dir ganz individuell anzupassen, um dir in allen Belangen bestmöglich helfen zu können. Was kann ich für dich tun?"
 
   utter_instructions:
   - buttons:
@@ -421,13 +423,38 @@ responses:
     text: 'Aussage 28/30: Ich werde wohl niemals fähig sein, Ordnung in mein Leben zu bringen.'
 
 slots:
+  neuroticism_test_result:
+    type: text
+    influence_conversation: false
+    mappings:
+    - type: from_text
+  extraversion_test_result:
+    type: text
+    influence_conversation: false
+    mappings:
+    - type: from_text
+  openness_test_result:
+    type: text
+    influence_conversation: false
+    mappings:
+    - type: from_text
+  agreeableness_test_result:
+    type: text
+    influence_conversation: false
+    mappings:
+    - type: from_text
+  conscientiousness_test_result:
+    type: text
+    influence_conversation: false
+    mappings:
+    - type: from_text
   neu_item_6:
     type: categorical
     influence_conversation: false
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: neu_item_6
     values:
     - '1'
@@ -441,7 +468,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: neu_item_21
     values:
     - '1'
@@ -455,7 +482,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: neu_item_11
     values:
     - '1'
@@ -469,7 +496,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: neu_item_26
     values:
     - '1'
@@ -483,7 +510,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: neu_item_41
     values:
     - '1'
@@ -497,7 +524,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: neu_item_51
     values:
     - '1'
@@ -511,7 +538,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: ext_item_2
     values:
     - '1'
@@ -525,7 +552,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: ext_item_7
     values:
     - '1'
@@ -539,7 +566,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: ext_item_22
     values:
     - '1'
@@ -553,7 +580,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: ext_item_32
     values:
     - '1'
@@ -567,7 +594,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: ext_item_37
     values:
     - '1'
@@ -581,7 +608,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: ext_item_52
     values:
     - '1'
@@ -595,7 +622,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: off_item_8
     values:
     - '1'
@@ -609,7 +636,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: off_item_13
     values:
     - '1'
@@ -623,7 +650,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: off_item_23
     values:
     - '1'
@@ -637,7 +664,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: off_item_43
     values:
     - '1'
@@ -651,7 +678,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: off_item_48
     values:
     - '1'
@@ -665,7 +692,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: off_item_58
     values:
     - '1'
@@ -679,7 +706,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: ver_item_9
     values:
     - '1'
@@ -693,7 +720,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: ver_item_14
     values:
     - '1'
@@ -707,7 +734,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: ver_item_24
     values:
     - '1'
@@ -721,7 +748,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: ver_item_39
     values:
     - '1'
@@ -735,7 +762,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: ver_item_49
     values:
     - '1'
@@ -749,7 +776,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: ver_item_59
     values:
     - '1'
@@ -763,7 +790,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: gew_item_5
     values:
     - '1'
@@ -777,7 +804,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: gew_item_10
     values:
     - '1'
@@ -791,7 +818,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: gew_item_20
     values:
     - '1'
@@ -805,7 +832,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: gew_item_40
     values:
     - '1'
@@ -819,7 +846,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: gew_item_50
     values:
     - '1'
@@ -833,7 +860,7 @@ slots:
     mappings:
     - type: from_text
       conditions:
-      - active_loop: survey_form
+      - active_loop: test_form
         requested_slot: gew_item_55
     values:
     - '1'

@@ -7,7 +7,7 @@ nlu:
 
 - intent: start_test
   examples: |
-    - /start_test
+    - /[start_test]
   
 - intent: start_conversation
   examples: |

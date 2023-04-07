@@ -5,10 +5,6 @@ class ComputeNeoFFI:
         self.off_values = off_values
         self.ver_values = ver_values
         self.gew_values = gew_values
-        # These items have to be inverted (umgepolt) according to the NEO-FFI manual
-        # since these items have a negated statement
-        self.ITEMS_TO_RECODE = ["off_item_8", "ver_item_9", "ver_item_14", "off_item_23", "ver_item_24",
-                                "ver_item_39", "off_item_48", "gew_item_55", "ver_item_59"]
 
     def Average(self,l):
         l = list(map(int, l))
