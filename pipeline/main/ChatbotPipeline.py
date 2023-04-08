@@ -537,7 +537,6 @@ Cleo:"""
         return big_five_string        
         # Inputs: predictions: Dict[str, Dict[str, np.ndarray]], query: str
     def run(self, inputs: List[dict]) -> Dict[str, Dict[str, np.ndarray]]:   
-        self.sender_id = "12345"
         print("---------- INPUTS ------------")
         print(inputs)      
         big_five_string = self._parse_big_five_precictions(inputs[1]['predictions']['classes'])

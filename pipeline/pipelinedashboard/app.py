@@ -245,8 +245,8 @@ CURRENT_PROMPT = [
 ]
 
 HEADER = dbc.Container([
-        dcc.Interval(id='interval-component', interval=1000, n_intervals=0),
-        dcc.Interval(id='interval-component-15', interval=15000, n_intervals=0),
+        dcc.Interval(id='interval-component', interval=5000, n_intervals=0),
+        dcc.Interval(id='interval-component-15', interval=10000, n_intervals=0),
         html.Div([dcc.Location(id='url', refresh=False)]),
         dcc.Store(id='wordcloud-data-store'),
         dcc.Store(id='current-user-text'),
@@ -537,13 +537,15 @@ def update_wordcloud(n, sender_id, stored_data):
      Input('agreeableness-threshold', 'value'),
      Input('neuroticism-threshold', 'value'),
      Input('session-id-field', 'children')],
+    State("threshold-output-row", "children"),
 )
 def update_thresholds(openness_threshold, 
                   conscientiousness_threshold, 
                   extraversion_threshold, 
                   agreeableness_threshold, 
                   neuroticism_threshold, 
-                  sender_id):
+                  sender_id,
+                  previous_actual_threshold_data):
     threshold_json =  {
         "neuroticism": neuroticism_threshold,
         "extraversion": extraversion_threshold,
@@ -554,7 +556,7 @@ def update_thresholds(openness_threshold,
     send_to_rabbitmq(json.dumps(threshold_json), queue="thresholds", sender_id=sender_id)
 
     body = receive_rabbitmq(queue="actual-thresholds", sender_id=sender_id)
-
+    html_data = []
     if body:
         actual_thresholds = json.loads(body)
         neuroticism_threshold = actual_thresholds["neuroticism"]
@@ -563,7 +565,7 @@ def update_thresholds(openness_threshold,
         agreeableness_threshold = actual_thresholds["agreeableness"]
         conscientiousness_threshold = actual_thresholds["conscientiousness"]
 
-        return html.Div([
+        html_data = html.Div([
             html.Span(f'Neuroticism Threshold: {neuroticism_threshold}'),
             html.Br(),
             html.Span(f'Extraversion Threshold: {extraversion_threshold}'),
@@ -575,7 +577,14 @@ def update_thresholds(openness_threshold,
             html.Span(f'Conscientiousness Threshold: {conscientiousness_threshold}'),
         ])
     else:
-        return html.Div(html.Span("Fetched no real configuration from pipeline server yet."))
+        # If there is no new data, use the previous_tsne_fig to update the plot
+        if previous_actual_threshold_data:
+            # Create a scatter plot using Plotly Express
+            html_data = previous_actual_threshold_data
+        else: 
+            html_data = html.Div(html.Span("Fetched no real configuration from pipeline server yet."))
+    return html_data
+
 
 
 def get_classification_html(classification_data, current_user_text):
@@ -675,8 +684,8 @@ def update_classification(n, sender_id, previous_classification, prev_eval_cf, p
 @app.callback(
     Output('prompt-output-row', 'children'),
     [Input('interval-component', 'n_intervals'),
-     Input('session-id-field', 'children')],
-     [State('prompt-output-row', 'children')]
+    Input('session-id-field', 'children')],
+    State('prompt-output-row', 'children')
 )
 def update_prompt(n, sender_id, previous_prompt):
     body = receive_rabbitmq(queue="prompt", sender_id=sender_id)
