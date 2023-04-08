@@ -1,10 +1,6 @@
 import json
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
+from fastapi import FastAPI
 from typing import Dict
-import requests
-import re
 from RabbitMQ import send_to_rabbitmq
 
 # Append parent directory
