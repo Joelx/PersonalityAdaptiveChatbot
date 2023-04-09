@@ -1,26 +1,26 @@
 version: "3.0"
-
 nlu:
 - intent: begin
   examples: |
     - /begin
-
 - intent: start_test
   examples: |
     - /start_test
-  
 - intent: start_conversation
   examples: |
     - /start_conversation
-
+- intent: nlu_fallback
+  examples: |
+    - über dich
+    - wie geht es dir?
+    - test
+    - bist du gerade anwesend
 - regex: begin
   examples: |
     - ^/begin$
-
-- regex: start_test
-  examples: |
-    - ^/start_test$
-
 - regex: start_conversation
   examples: |
     - ^/start_conversation$
+- regex: start_test
+  examples: |
+    - ^/start_test$

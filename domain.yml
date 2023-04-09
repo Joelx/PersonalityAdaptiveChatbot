@@ -1,427 +1,12 @@
-version: "3.0"
-
-intents:
-  - begin
-  - start_test
-  - start_conversation
-
-actions:
-  - call_haystack
-  - validate_test_form
-  - action_submit_test
-
+version: '3.0'
 session_config:
   session_expiration_time: 0
   carry_over_slots_to_new_session: true
-
-
-responses:
-  utter_greet:
-  - text: "Hallo 😊! Ich bin Cleo, dein virtueller Assistent. Ich versuche mich dir ganz individuell anzupassen, um dir in allen Belangen bestmöglich helfen zu können. Was kann ich für dich tun?"
-
-  utter_instructions:
-  - buttons:
-    - payload: /start_test
-      title: "Big Five Persönlichkeitstest durchführen"
-    - payload: /start_conversation
-      title: "Unterhaltung beginnen"
-    text: "Was möchtest du tun? Wenn du einen Big Five Persönlichkeitstest durchführst, werde ich mich an das Testergebnis halten, um mich deinen Bedürfnissen anzupassen.\nBeginnst du hingegen direkt mit der Unterhaltung, versuche ich deine Persönlichkeit automatisch über deinen Schreibstil festzustellen."
-
-  utter_ask_topic:
-  - text: "Worüber möchtest du reden?"
-  
-  # NEO-FFI-30 TEST!
-  utter_ask_neu_item_6:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 3/30: Ich fühle mich anderen oft unterlegen.'
-  utter_ask_neu_item_11:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 8/30: Wenn ich unter starkem Stress stehe, fühle ich mich manchmal, als ob ich zusammenbräche.'
-  utter_ask_neu_item_21:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 12/30: Ich fühle mich oft angespannt und nervös.'
-  utter_ask_neu_item_26:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 16/30: Manchmal fühle ich mich völlig wertlos.'
-  utter_ask_neu_item_41:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 21/30: Zu häufig bin ich entmutigt und will aufgeben, wenn etwas schief geht.'
-  utter_ask_neu_item_51:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 26/30: Ich fühle mich oft hilflos und wünsche mir eine Person, die meine Probleme löst.'
-  utter_ask_ext_item_2:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 1/30: Ich habe gern viele Leute um mich herum.'
-  utter_ask_ext_item_7:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 4/30: Ich bin leicht zum Lachen zu bringen.'
-  utter_ask_ext_item_22:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 13/30: Ich bin gerne im Zentrum des Geschehens.'
-  utter_ask_ext_item_32:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 17/30: Ich habe oft das Gefühl, vor Energie überzuschäumen.'
-  utter_ask_ext_item_37:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 18/30: Ich bin ein fröhlicher, gutgelaunter Mensch.'
-  utter_ask_ext_item_52:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage: 27/30: Ich bin ein sehr aktiver Mensch.'
-  utter_ask_off_item_8:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 5/30: Ich finde philosophische Diskussionen langweilig.'
-  utter_ask_off_item_13:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 9/30: Mich begeistern die Motive, die ich in der Kunst und in der Natur finde.'
-  utter_ask_off_item_23:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 14/30: Poesie beeindruckt mich wenig oder gar nicht.'
-  utter_ask_off_item_43:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 22/30: Wenn ich Literatur lese oder ein Kunstwerk betrachte, empfinde ich manchmal ein Frösteln oder eine Welle der Begeisterung.'
-  utter_ask_off_item_48:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 23/30: Ich habe wenig Interesse, über die Natur des Universums oder die Lage der Menschheit zu spekulieren.'
-  utter_ask_off_item_58:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 29/30: Ich habe oft Spaß daran, mit Theorien oder abstrakten Ideen zu spielen.'
-  utter_ask_ver_item_9:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 6/30: Ich bekomme häufiger Streit mit meiner Familie und meinen Kollegen.'
-  utter_ask_ver_item_14:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 10/30: Manche Leute halten mich für selbstsüchtig und selbstgefällig.'
-  utter_ask_ver_item_24:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 15/30: Im Hinblick auf die Absichten anderer bin ich eher zynisch und skeptisch.'
-  utter_ask_ver_item_39:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 19/30: Manche Leute halten mich für kalt und berechnend.'
-  utter_ask_ver_item_49:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 24/30: Ich versuche stets rücksichtsvoll und sensibel zu handeln.'
-  utter_ask_ver_item_59:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 30/30: Um zu bekommen, was ich will, bin ich notfalls bereit, Menschen zu manipulieren.'
-  utter_ask_gew_item_5:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 2/30: Ich halte meine Sachen ordentlich und sauber.'
-  utter_ask_gew_item_10:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 7/30: Ich kann mir meine Zeit recht gut einteilen, sodass ich meine Angelegenheiten rechtzeitig beende.'
-  utter_ask_gew_item_20:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 11/30: Ich versuche, alle mir übertragenen Aufgaben sehr gewissenhaft zu erledigen.'
-  utter_ask_gew_item_40:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 20/30: Wenn ich eine Verpflichtung eingehe, dann kann man sich auf mich sicher verlassen.'
-  utter_ask_gew_item_50:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 25/30: Ich bin eine tüchtige Person, die ihre Arbeit immer erledigt.'
-  utter_ask_gew_item_55:
-  - buttons:
-    - payload: '1'
-      title: 1 (starke Ablehnung)
-    - payload: '2'
-      title: '2'
-    - payload: '3'
-      title: '3'
-    - payload: '4'
-      title: '4'
-    - payload: '5'
-      title: 5 (starke Zustimmung)
-    text: 'Aussage 28/30: Ich werde wohl niemals fähig sein, Ordnung in mein Leben zu bringen.'
-
+intents:
+- begin
+- start_test
+- start_conversation
+- nlu_fallback
 slots:
   neuroticism_test_result:
     type: text
@@ -868,7 +453,414 @@ slots:
     - '3'
     - '4'
     - '5'
-          
+responses:
+  utter_greet:
+  - text: Hallo 😊! Ich bin Cleo, dein virtueller Assistent. Ich versuche mich dir ganz individuell anzupassen, um dir in allen Belangen bestmöglich helfen zu können. Was kann ich für dich tun?
+  utter_instructions:
+  - buttons:
+    - payload: /start_test
+      title: Big Five Persönlichkeitstest durchführen
+    - payload: /start_conversation
+      title: Unterhaltung beginnen
+    text: |-
+      Was möchtest du tun? Wenn du einen Big Five Persönlichkeitstest durchführst, werde ich mich an das Testergebnis halten, um mich deinen Bedürfnissen anzupassen.
+      Beginnst du hingegen direkt mit der Unterhaltung, versuche ich deine Persönlichkeit automatisch über deinen Schreibstil festzustellen.
+  utter_ask_topic:
+  - text: Worüber möchtest du reden?
+  utter_ask_neu_item_6:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 3/30: Ich fühle mich anderen oft unterlegen.'
+  utter_ask_neu_item_11:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 8/30: Wenn ich unter starkem Stress stehe, fühle ich mich manchmal, als ob ich zusammenbräche.'
+  utter_ask_neu_item_21:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 12/30: Ich fühle mich oft angespannt und nervös.'
+  utter_ask_neu_item_26:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 16/30: Manchmal fühle ich mich völlig wertlos.'
+  utter_ask_neu_item_41:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 21/30: Zu häufig bin ich entmutigt und will aufgeben, wenn etwas schief geht.'
+  utter_ask_neu_item_51:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 26/30: Ich fühle mich oft hilflos und wünsche mir eine Person, die meine Probleme löst.'
+  utter_ask_ext_item_2:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 1/30: Ich habe gern viele Leute um mich herum.'
+  utter_ask_ext_item_7:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 4/30: Ich bin leicht zum Lachen zu bringen.'
+  utter_ask_ext_item_22:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 13/30: Ich bin gerne im Zentrum des Geschehens.'
+  utter_ask_ext_item_32:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 17/30: Ich habe oft das Gefühl, vor Energie überzuschäumen.'
+  utter_ask_ext_item_37:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 18/30: Ich bin ein fröhlicher, gutgelaunter Mensch.'
+  utter_ask_ext_item_52:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage: 27/30: Ich bin ein sehr aktiver Mensch.'
+  utter_ask_off_item_8:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 5/30: Ich finde philosophische Diskussionen langweilig.'
+  utter_ask_off_item_13:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 9/30: Mich begeistern die Motive, die ich in der Kunst und in der Natur finde.'
+  utter_ask_off_item_23:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 14/30: Poesie beeindruckt mich wenig oder gar nicht.'
+  utter_ask_off_item_43:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 22/30: Wenn ich Literatur lese oder ein Kunstwerk betrachte, empfinde ich manchmal ein Frösteln oder eine Welle der Begeisterung.'
+  utter_ask_off_item_48:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 23/30: Ich habe wenig Interesse, über die Natur des Universums oder die Lage der Menschheit zu spekulieren.'
+  utter_ask_off_item_58:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 29/30: Ich habe oft Spaß daran, mit Theorien oder abstrakten Ideen zu spielen.'
+  utter_ask_ver_item_9:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 6/30: Ich bekomme häufiger Streit mit meiner Familie und meinen Kollegen.'
+  utter_ask_ver_item_14:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 10/30: Manche Leute halten mich für selbstsüchtig und selbstgefällig.'
+  utter_ask_ver_item_24:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 15/30: Im Hinblick auf die Absichten anderer bin ich eher zynisch und skeptisch.'
+  utter_ask_ver_item_39:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 19/30: Manche Leute halten mich für kalt und berechnend.'
+  utter_ask_ver_item_49:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 24/30: Ich versuche stets rücksichtsvoll und sensibel zu handeln.'
+  utter_ask_ver_item_59:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 30/30: Um zu bekommen, was ich will, bin ich notfalls bereit, Menschen zu manipulieren.'
+  utter_ask_gew_item_5:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 2/30: Ich halte meine Sachen ordentlich und sauber.'
+  utter_ask_gew_item_10:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 7/30: Ich kann mir meine Zeit recht gut einteilen, sodass ich meine Angelegenheiten rechtzeitig beende.'
+  utter_ask_gew_item_20:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 11/30: Ich versuche, alle mir übertragenen Aufgaben sehr gewissenhaft zu erledigen.'
+  utter_ask_gew_item_40:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 20/30: Wenn ich eine Verpflichtung eingehe, dann kann man sich auf mich sicher verlassen.'
+  utter_ask_gew_item_50:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 25/30: Ich bin eine tüchtige Person, die ihre Arbeit immer erledigt.'
+  utter_ask_gew_item_55:
+  - buttons:
+    - payload: '1'
+      title: 1 (starke Ablehnung)
+    - payload: '2'
+      title: '2'
+    - payload: '3'
+      title: '3'
+    - payload: '4'
+      title: '4'
+    - payload: '5'
+      title: 5 (starke Zustimmung)
+    text: 'Aussage 28/30: Ich werde wohl niemals fähig sein, Ordnung in mein Leben zu bringen.'
+actions:
+- call_haystack
+- validate_test_form
+- action_submit_test
 forms:
   test_form:
     required_slots:
