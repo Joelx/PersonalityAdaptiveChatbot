@@ -1,26 +1,32 @@
 version: "3.0"
-
 nlu:
 - intent: begin
   examples: |
     - /begin
-
 - intent: start_test
   examples: |
     - /start_test
-  
 - intent: start_conversation
   examples: |
     - /start_conversation
-
+- intent: nlu_fallback
+  examples: |
+    - wie geht es dir?
+    - Ja, ich würde gerne mehr darüber erfahren. Könntest du mir kurz erklären, was jede Dimension bedeutet und wie sie sich auf die Persönlichkeit auswirkt?
+    - Ja, das klingt sehr interessant. Wie genau analysierst du meine Sprache und wie funktioniert das mit den Big Five Persönlichkeitsmerkmalen?
+    - Das klingt sehr interessant! Ich denke, ich würde gerne mehr über deine Fähigkeiten als psychologischer Berater erfahren. Wie gehst du dabei vor?
+    - Mir geht es gut, danke der Nachfrage. Ich würde gerne über deine Fähigkeiten als Chatbot sprechen. Was kannst du alles tun?
+    - Heute habe ich noch keine konkreten Pläne. Vielleicht gehe ich später spazieren oder treffe mich mit Freunden. Wie sieht dein Tag aus?
+    - Das Wetter heute ist ziemlich gut. Die Sonne scheint und es ist nicht zu heiß. Wie ist das Wetter bei dir?
+    - Ich würde gerne über das Wetter sprechen. Wie ist das Wetter bei dir?
+    - ja gerne !
+    - wie findest du musik?
 - regex: begin
   examples: |
     - ^/begin$
-
-- regex: start_test
-  examples: |
-    - ^/start_test$
-
 - regex: start_conversation
   examples: |
     - ^/start_conversation$
+- regex: start_test
+  examples: |
+    - ^/start_test$
