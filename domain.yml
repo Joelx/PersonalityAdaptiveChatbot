@@ -423,6 +423,16 @@ responses:
     text: 'Aussage 28/30: Ich werde wohl niemals fähig sein, Ordnung in mein Leben zu bringen.'
 
 slots:
+  classification_results:
+    type: text
+    influence_conversation: false
+    mappings:
+    - type: custom  
+  eval_classification_results:
+    type: text
+    influence_conversation: false
+    mappings:
+    - type: custom  
   neuroticism_test_result:
     type: text
     influence_conversation: false

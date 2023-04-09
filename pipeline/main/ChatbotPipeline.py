@@ -1,5 +1,8 @@
+from io import StringIO
 import os
-os.environ["LANGCHAIN_HANDLER"] = "langchain"
+import tempfile
+from matplotlib import pyplot as plt
+#os.environ["LANGCHAIN_HANDLER"] = "langchain"
 import json
 from typing import List, Dict, Text, Tuple
 from haystack import BaseComponent
@@ -7,6 +10,7 @@ from haystack.schema import Document
 from haystack.document_stores.base import BaseDocumentStore
 import numpy as np
 import joblib
+import pandas as pd
 from pymagnitude import Magnitude
 import nltk
 #nltk.download('punkt')
@@ -32,29 +36,53 @@ from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 import urllib.request
 from haystack import Pipeline
 from RabbitMQ import *
+import mlflow.sklearn
+
+# Set MLflow tracking server URI
+mlflow.set_tracking_uri("10.1.81.44:8003")
+mlflow.set_experiment("production_experiment")
 
 # We want to handle relative paths like Django does it:
 # Define this as the root dir of the pipeline project
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__)) 
 MODEL_PATH = ROOT_DIR + "/models/"
 
-
 class ConversationHistoryRetreiver(BaseComponent):    
     outgoing_edges = 1
         
-    def _parse_user_conversation_history(self, conversation_history) -> Text:
-        user_text = ' '.join([event.get('message', '') for event in conversation_history if event.get('event') == 'user'])
+    def _parse_conversation_history(self, conversation_history, sender='user') -> Text:
+        user_text = ' '.join([event.get('message', '') for event in conversation_history if event.get('event') == sender])
         return user_text
+    
+    def _log_mlflow(self, text: Text, run_id: str, name: str) -> None:
+        # Log text as an artifact in MLflow
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as temp_file:
+            temp_file.write(text.encode())
+            temp_file_path = temp_file.name
+            
+        # Make sure to set the MLflow run_id before logging the artifact
+        mlflow.start_run(run_id=run_id)
+        mlflow.log_artifact(temp_file_path, artifact_path=name)
+        mlflow.end_run()
+
+        # Remove the temporary file after logging it
+        os.remove(temp_file_path)
     
     def run(self, query: List[Dict[Text, Text]]) -> Dict[Text, Text]:
         print("--------- Query ---------")
         print(query)
-        user_conversation_history = self._parse_user_conversation_history(query)
+        user_conversation_history = self._parse_conversation_history(query, sender='user')
+        bot_conversation_history = self._parse_conversation_history(query, sender='cleo')
         sender_id = query[-1]["sender_id"] # Sender id is the last element
+        run_id = query[-1]["run_id"]
+        self._log_mlflow(user_conversation_history, run_id, name='user_conversation_history')
+        self._log_mlflow(bot_conversation_history, run_id, name='bot_conversation_history')
         print(f"SENDER_ID: {sender_id}")
+        print(f"RUN_ID: {run_id}")
         output={
             "conversation_history": user_conversation_history,
-            "sender_id": sender_id
+            "sender_id": sender_id,
+            "run_id": run_id
         }
 
         # Send to dashboard
@@ -71,7 +99,9 @@ class TfidfVectorizerNode(BaseComponent):
     def __init__(self, model_path = MODEL_PATH + "vectorizers/idf_vectorizer1.2.2.joblib"):
         self.model_path = model_path
         try:
-            self.vectorizer = joblib.load(model_path)
+            self.vectorizer = mlflow.sklearn.load_model(model_uri=f"models:/big_five_tfidf_vectorizer/Production")
+            print(f"MLFLOW ---- {self.vectorizer}")
+            #self.vectorizer = joblib.load(model_path)
             #print(f"The model {self.model_path} was pickled using sklearn version {self.vectorizer.__getstate__()['_sklearn_version']}")
         except Exception as e:
             print(f"Error loading vectorizer: {e}")
@@ -87,12 +117,13 @@ class TfidfVectorizerNode(BaseComponent):
             print(f"Error loading vectorizer: {e}")
             return {}        
     
-    def run(self, conversation_history: Text, sender_id: str) -> Dict[Text, Document]:
+    def run(self, conversation_history: Text, sender_id: str, run_id: str) -> Dict[Text, Document]:
         idf_embeddings = self._tfidf_embeddings()
         output={
             "conversation_history": conversation_history,
             "idf_embeddings": idf_embeddings,
-            "sender_id": sender_id
+            "sender_id": sender_id,
+            "run_id": run_id
         }
         return output, "output_1"
 
@@ -112,7 +143,6 @@ class FasttextVectorizerNode(BaseComponent):
     def __init__(self, model_path: str = MODEL_PATH + "embeddings/wiki.de.vec.magnitude", embedding_dim: int = 300):
         self.embedding_dim = embedding_dim
         self.model_path = model_path
-        self.sender_id = ""
         self.model_url = "https://drive.google.com/uc?id=10ILYDkEFnlrExQwo7_iu2sL2le43Xlcp&export=download&confirm=t&uuid=92d36780-86fc-4fae-b03c-f05653d01849"
         try:
             # Check if the model file exists in the current directory
@@ -129,7 +159,7 @@ class FasttextVectorizerNode(BaseComponent):
             print(f"Error loading vectorizer: {e}")
             self.model = None        
     
-    def _tfidf_w2v(self, text: Text, idf_dict: Dict[Text, Dict[Text, float]]) -> np.array(List[List[float]]):
+    def _tfidf_w2v(self, text: Text, idf_dict: Dict[Text, Dict[Text, float]], sender_id: str) -> np.array(List[List[float]]):
         vectors = []
         words = word_tokenize(text)
         w2v_vectors = self.model.query(words)
@@ -142,16 +172,16 @@ class FasttextVectorizerNode(BaseComponent):
 
 
         embeddings = {"words": words, "vectors": w2v_vectors.tolist()}
-        send_to_rabbitmq(json.dumps(embeddings), queue="embeddings", sender_id=self.sender_id)
+        send_to_rabbitmq(json.dumps(embeddings), queue="embeddings", sender_id=sender_id)
 
         return np.array(vectors)
 
-    def run(self, conversation_history: Text, idf_embeddings: Dict[Text, Dict[str, float]], sender_id: str) -> Dict[str, np.ndarray]:
-        self.sender_id = sender_id
-        vectors = self._tfidf_w2v(conversation_history, idf_embeddings)
+    def run(self, conversation_history: Text, idf_embeddings: Dict[Text, Dict[str, float]], sender_id: str, run_id: str) -> Dict[str, np.ndarray]:
+        vectors = self._tfidf_w2v(conversation_history, idf_embeddings, sender_id)
         output={
             "vectors": vectors,
-            "sender_id": sender_id
+            "sender_id": sender_id,
+            "run_id": run_id,
         }
         return output, "output_1"    
     
@@ -164,8 +194,15 @@ class NormalizerNode(BaseComponent):
     def __init__(self, model_path: str = MODEL_PATH + "normalizers/embedding_normalizer1.2.2.joblib", input="embeddings"):
         self.model_path = model_path
         self.input = input
+        self.model_uri = ""
         try:
-            self.normalizer = joblib.load(model_path)
+            if input == "embeddings":
+                self.model_uri = "models:/big_five_embedding_normalizer/Production"
+            elif input == "features":
+                self.model_uri = "models:/big_five_feature_normalizer/Production"
+
+            self.normalizer = mlflow.sklearn.load_model(model_uri=self.model_uri)
+            #self.normalizer = joblib.load(model_path)
             #print(f"The model {self.model_path} was pickled using sklearn version {self.normalizer.__getstate__()['_sklearn_version']}")
         except Exception as e:
             print(f"Error loading vectorizer: {e}")
@@ -184,11 +221,12 @@ class NormalizerNode(BaseComponent):
             print(f"Error loading vectorizer: {e}")
             return {}              
     
-    def run(self, vectors: np.array(float), sender_id: str) -> Dict[str, np.ndarray]:
+    def run(self, vectors: np.array(float), sender_id: str, run_id: str) -> Dict[str, np.ndarray]:
         normalized_vectors = self._normalize(vectors)
         output={
             f"n{self.input}": normalized_vectors,
-            "sender_id": sender_id
+            "sender_id": sender_id,
+            "run_id": run_id
         }
         #print(output)
         return output, "output_1"
@@ -206,7 +244,6 @@ class BigFiveFeaturizer(BaseComponent):
         self.model = AutoModelForSequenceClassification.from_pretrained(self.model_name_or_path)
         self.model.save_pretrained(MODEL_PATH + self.model_name_or_path)
         self.tokenizer.save_pretrained(MODEL_PATH + self.model_name_or_path)
-        self.sender_id = ""
         
     def _preprocess(self, text):
         new_text = []
@@ -216,7 +253,7 @@ class BigFiveFeaturizer(BaseComponent):
             new_text.append(t)
         return " ".join(new_text)
         
-    def _sentiment_analysis(self, text: Text):  
+    def _sentiment_analysis(self, text: Text, sender_id: str):  
         text = self._preprocess(text)
         encoded_input = self.tokenizer(text, return_tensors='pt')
         output = self.model(**encoded_input)
@@ -226,7 +263,7 @@ class BigFiveFeaturizer(BaseComponent):
 
         # Send to dashboard
         sentiment_scores = {"sentiment": scores.tolist()}
-        send_to_rabbitmq(json.dumps(sentiment_scores), queue="sentiment", sender_id=self.sender_id)
+        send_to_rabbitmq(json.dumps(sentiment_scores), queue="sentiment", sender_id=sender_id)
 
         return np.array([scores])
             
@@ -280,11 +317,11 @@ class BigFiveFeaturizer(BaseComponent):
 
         return np.concatenate([longest_word_length, mean_word_length, length_in_chars], axis=1)
     
-    def _featurize(self, text) -> np.hstack:
+    def _featurize(self, text: Text, sender_id: str) -> np.hstack:
         emoji_re = self._emoji_count(text)
         num_dots = self._num_dots(text)
         num_punctuations = self._count_punctuations(text)
-        sentiment = self._sentiment_analysis(text)
+        sentiment = self._sentiment_analysis(text, sender_id)
         text_features = self._text_features(text)
         
         feature_names = ['train_emoji_re',
@@ -306,12 +343,12 @@ class BigFiveFeaturizer(BaseComponent):
             text_features))
         return features
     
-    def run(self, conversation_history: Text, sender_id: str) -> np.hstack:
-        self.sender_id = sender_id
-        vectors= self._featurize(conversation_history)
+    def run(self, conversation_history: Text, sender_id: str, run_id: str) -> np.hstack:
+        vectors= self._featurize(conversation_history, sender_id)
         output={
             "vectors": vectors,
-            "sender_id": sender_id
+            "sender_id": sender_id,
+            "run_id": run_id
         }
         return output, "output_1"
     
@@ -351,11 +388,13 @@ class ConcatenationNode(BaseComponent):
     
     def run(self, inputs: List[dict]) -> Dict[str, np.ndarray]:
         sender_id = inputs[0]["sender_id"]
+        run_id = inputs[0]["run_id"]
         concatenated_features, feature_names = self._concatenate_features(inputs[0]["nfeatures"], inputs[1]["nembeddings"])
         output={
             "concatenated_features": concatenated_features,
             "feature_names": feature_names,
-            "sender_id": sender_id   
+            "sender_id": sender_id,
+            "run_id": run_id
         }
         print("\n----------------------")
         print(output)
@@ -372,18 +411,18 @@ class BigFiveFeatureSelectionNode(BaseComponent):
     def __init__(self, model_paths: Dict[str, str]):
         self.model_paths = model_paths
         self.selectors = {}
-        self.sender_id = ""
 
         for dimension, model_path in self.model_paths.items():
             try:
-                self.selectors[dimension] = joblib.load(model_path)
+                self.selectors[dimension] = mlflow.sklearn.load_model(model_uri=f"models:/{dimension}_selector/Production")
+                #self.selectors[dimension] = joblib.load(model_path)
                 #print(self.selectors[dimension])
                 #print(f"The model {model_path} was pickled using sklearn version {self.selectors[dimension].__getstate__()['_sklearn_version']}")
             except Exception as e:
                 print(f"Error loading selector: {e}")
                 self.selectors = None
             
-    def _select_features(self, features: np.array(float), feature_names: List[str]) -> np.ndarray:
+    def _select_features(self, features: np.array(float), feature_names: List[str], sender_id: str) -> np.ndarray:
         selected_features = {}
         feature_json = {"features": {}}
         for dimension, selector in self.selectors.items():
@@ -399,13 +438,12 @@ class BigFiveFeatureSelectionNode(BaseComponent):
                 print(f"Error loading selector: {e}")
         print(feature_json)
         # Send to dashboard
-        send_to_rabbitmq(json.dumps(feature_json), queue="features", sender_id=self.sender_id)
+        send_to_rabbitmq(json.dumps(feature_json), queue="features", sender_id=sender_id)
 
         return selected_features             
     
     def run(self, concatenated_features: np.array(float), feature_names: List[str], sender_id: str) -> Dict[str, np.ndarray]:
-        self.sender_id = sender_id
-        selected_features = self._select_features(concatenated_features, feature_names)
+        selected_features = self._select_features(concatenated_features, feature_names, sender_id)
         output={"selected_features": selected_features}
         return output, "output_1"
     
@@ -419,35 +457,61 @@ class BigFiveClassifierNode(BaseComponent):
         self.model_paths = model_paths
         self.thresholds = thresholds
         self.models = {}
-        self.sender_id = ""
 
         for dimension, model_path in self.model_paths.items():
             try:
-                self.models[dimension] = joblib.load(model_path)
+                self.models[dimension] = mlflow.sklearn.load_model(model_uri=f"models:/{dimension}_classifier/Production")
+                #self.models[dimension] = joblib.load(model_path)
                 #print(f"The model {model_path} was pickled using sklearn version {self.models[dimension].__getstate__()['_sklearn_version']}")
             except Exception as e:
                 print(f"Error loading model: {e}")
                 self.models = None
             
-    def _predict(self, selected_features: Dict[str, np.ndarray]):
+    def _predict(self, selected_features: Dict[str, np.ndarray], sender_id: str, run_id: str):
         predicted_classes = {}
         predicted_proba = {}
 
         # Get threshold config from dashboard
-        body = receive_rabbitmq(queue="thresholds", sender_id=self.sender_id)
+        body = receive_rabbitmq(queue="thresholds", sender_id=sender_id)
         if body:
             self.thresholds = json.loads(body)
             print("------ THRESHOLDS ------------")
             print(self.thresholds)
-            send_to_rabbitmq(json.dumps(self.thresholds), queue="actual-thresholds", sender_id=self.sender_id)
+            send_to_rabbitmq(json.dumps(self.thresholds), queue="actual-thresholds", sender_id=sender_id)
 
-        for dimension, features in selected_features.items():
-            try:
-                predicted_proba[dimension] = self.models[dimension].predict_proba(features)[:,1]
-                predicted_classes[dimension] = np.where(predicted_proba[dimension] >= self.thresholds[dimension], 1, 0)
-            except Exception as e:
-                print(f"Error predicting with model: {e}")
-                
+        combined_df_list = []
+
+        with mlflow.start_run(run_id=run_id):
+            for dimension, features in selected_features.items():
+                try:
+                    model_name = f"{dimension}_classifier"
+                    mlflow.set_tag(f"{dimension}_model_name", model_name)
+
+                    # Actual classification
+                    predicted_proba[dimension] = self.models[dimension].predict_proba(features)[:, 1]
+                    predicted_classes[dimension] = np.where(predicted_proba[dimension] >= self.thresholds[dimension], 1, 0)
+
+                    # Combine probabilities, and predictions into a single DataFrame
+                    probabilities_df = pd.DataFrame(predicted_proba[dimension], columns=[f"{dimension}_probability"])
+                    predictions_df = pd.DataFrame(predicted_classes[dimension], columns=[f"{dimension}_prediction"])
+                    dimension_combined_df = pd.concat([probabilities_df, predictions_df], axis=1)
+                    combined_df_list.append(dimension_combined_df)
+                except Exception as e:
+                    print(f"Error predicting with model: {e}")
+
+            # Merge all dimension DataFrames
+            final_combined_df = combined_df_list[0]
+            for df in combined_df_list[1:]:
+                final_combined_df = pd.concat([final_combined_df, df.iloc[:, -2:]], axis=1)
+
+            # Create a temporary file and save the final combined DataFrame to it
+            with tempfile.NamedTemporaryFile(mode="w+", suffix=".csv", delete=False) as temp_file:
+                final_combined_df.to_csv(temp_file, index=False)
+                temp_file.flush()
+
+                # Log the temporary file as an artifact
+                mlflow.log_artifact(temp_file.name, artifact_path="combined_predictions.csv")
+                    
         predictions = {
             "classes": predicted_classes,
             "probabilities": predicted_proba
@@ -462,23 +526,90 @@ class BigFiveClassifierNode(BaseComponent):
             else:
                 predictions_json[key] = value.tolist()
         # Send to dashboard
-        send_to_rabbitmq(json.dumps(predictions_json), queue="classification", sender_id=self.sender_id)
+        send_to_rabbitmq(json.dumps(predictions_json), queue="classification", sender_id=sender_id)
         
         return predictions
 
-    def run(self, selected_features: Dict[str, np.ndarray], sender_id: str) -> Dict[str, Dict[str, np.ndarray]]:
-        self.sender_id = sender_id
-        predictions = self._predict(selected_features)
+    def run(self, selected_features: Dict[str, np.ndarray], sender_id: str, run_id: str) -> Dict[str, Dict[str, np.ndarray]]:
+        predictions = self._predict(selected_features, sender_id=sender_id, run_id=run_id)
         print("----------- Predictions --------------")
         print(predictions)
         output={
             "predictions": predictions,
-            "sender_id": sender_id
+            "sender_id": sender_id,
+            "run_id": run_id
         }
         return output, "output_1"
     
     def run_batch(self, selected_features: np.array(float)) -> Dict[str, np.ndarray]:
         pass
+
+
+class BigFiveClassificationEvaluator(BaseComponent):    
+    outgoing_edges = 1
+
+    def __init__(self):
+        self.llm = ChatOpenAI(temperature=0)
+        # self.template = """You are a powerful AI model for text classification and with comprehensive knowledge of the Big Five personality model. 
+        # This knowledge is backed up by scientific research and literature that describes the five traits of the Big Five model and their impact on peoples 
+        # individual writing style through linguistic cues. 
+        # You will receive a text written by a human in German language (German Human Text)  that was received from a conversation by that human with a chatbot. You will do a Big Five classification of that text on all five Traits, that will look like that:
+        # Neuroticism: CF[cf_class], Proba[cf_proba]
+        # Extraversion: CF[cf_class], Proba[cf_proba]
+        # Openness for experience: CF[cf_class], Proba[cf_proba]
+        # Agreeableness: CF[cf_class], Proba[cf_proba]
+        # Conscientiousness: CF[cf_class], Proba[cf_proba]
+        
+        # - cf_class is be the classification result on each individual trait and will be either 1 (if classification is positive) or 0 (if classification is negative). 
+        # You will do this classification based on your knowledge about the Big Five traits and their linguistic cues. However, in general a classification is considered 1 (positive) if this trait seems to be pronounced above average in that person.
+        # - cf_proba is the probability of that classification result on each individual trait and will be a floating point number between 0 and 1. 
+
+        # German Human Text:
+        # {text}
+        # Do the classification:"""
+        self.template = """Please do a best effort binary classification for the five big five traits neuroticism, extraversion, openness for experience, agreeableness and conscientiousness for the following German text. 
+        Please classify with a binary 1 if you think the peculiarity of the dimension is above average in that person or 0 if its below average. Try to also include a probability score from 1-100:
+        
+        German Human Text:
+        {text}
+        Do the classification:"""
+        self.prompt = PromptTemplate(input_variables=["text"], template=self.template)
+
+    def _predict(self, text: Text) -> Text:
+        llm_chain = LLMChain(prompt=self.prompt, llm=self.llm)
+        cf_result = llm_chain.run(text=text)
+        return cf_result
+    
+    def _log_mlflow(self, text: Text, run_id: str, name: str) -> None:
+        # Log text as an artifact in MLflow
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as temp_file:
+            temp_file.write(text.encode())
+            temp_file_path = temp_file.name
+            
+        # Make sure to set the MLflow run_id before logging the artifact
+        mlflow.start_run(run_id=run_id)
+        mlflow.log_artifact(temp_file_path, artifact_path=name)
+        mlflow.end_run()
+
+        # Remove the temporary file after logging it
+        os.remove(temp_file_path)
+
+    def run(self, conversation_history: Text, sender_id: str, run_id: str) -> Text:
+        predictions = self._predict(conversation_history)
+        self._log_mlflow(predictions, run_id, "evaluation_classification_result")
+        print("----------- Predictions --------------")
+        print(predictions)
+        output={
+            "eval_predictions": predictions,
+            "sender_id": sender_id,
+            "run_id": run_id
+        }
+        send_to_rabbitmq(json.dumps(output['eval_predictions']), queue="eval_classification", sender_id=sender_id)
+        return output, "output_1"
+    
+    def run_batch(self, conversation_history: Text, sender_id: str) -> Text:
+        pass
+
 
 class BigFiveResponseGenerator(BaseComponent):    
     outgoing_edges = 1
@@ -516,7 +647,6 @@ Cleo:"""
                               callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]))
         self.MAX_TOKEN_SIZE = 4096
         self.conversation = LLMChain(llm=self.llm, prompt=self.chat_prompt, verbose=True)
-        self.sender_id = ""
 
     def _count_tokens(self, text: Text) -> int:
         tokens = re.findall(r'\S+|\n', text)
@@ -527,6 +657,7 @@ Cleo:"""
 
     def _parse_full_conversation(self, conversation: List[Dict[str, str]]) -> Tuple[str, str]:
         current_user_input = [event['message'] for event in reversed(conversation) if event.get('event') == 'user'][0]
+        print(f"---- CURRENT USER INPUT ---\n{current_user_input}")
         conversation_text = '\n'.join([f"{event['event'].title()}: {event['message']}" for event in conversation if event.get('message')])
         conversation_text = conversation_text.rsplit('\nUser:', 1)[0]
         return conversation_text, current_user_input
@@ -537,6 +668,8 @@ Cleo:"""
         return big_five_string        
         # Inputs: predictions: Dict[str, Dict[str, np.ndarray]], query: str
     def run(self, inputs: List[dict]) -> Dict[str, Dict[str, np.ndarray]]:   
+        sender_id = inputs[0]['sender_id']
+        run_id = inputs[0]['run_id']
         print("---------- INPUTS ------------")
         print(inputs)      
         big_five_string = self._parse_big_five_precictions(inputs[1]['predictions']['classes'])
@@ -553,16 +686,20 @@ Cleo:"""
         }
         
         # Send to dashboard
-        send_to_rabbitmq(json.dumps(json_prompt), queue="prompt", sender_id=self.sender_id)
+        send_to_rabbitmq(json.dumps(json_prompt), queue="current-prompt", sender_id=sender_id)
         
         output = {
             'response': res,
-            'sener_id': self.sender_id
+            'predictions': inputs[1]['predictions'],
+            'eval_predictions': inputs[0]['eval_predictions'],
+            'sender_id': sender_id,
+            'run_id': run_id
         }
         return output, "output_1"
     
     def run_batch(self, predictions: Dict[str, Dict[str, np.ndarray]]) -> Dict[str, np.ndarray]:
         pass
+
 
 def create_pipeline():
 
@@ -581,11 +718,11 @@ def create_pipeline():
         "conscientiousness": MODEL_PATH + "big_five_classifiers/conscientiousness_classifier2.joblib"
     }
     cf_thresholds = {
-        "neuroticism": 0.578,
-        "extraversion": 0.478,
-        "openness": 0.178,
-        "agreeableness": 0.494,
-        "conscientiousness": 0.299
+        "neuroticism": 0.562,
+        "extraversion": 0.402,
+        "openness": 0.236,
+        "agreeableness": 0.580,
+        "conscientiousness": 0.316
     }
 
     big_five_pipeline = Pipeline()
@@ -607,7 +744,11 @@ def create_pipeline():
     big_five_pipeline.add_node(component=feature_selector, name="BigFiveFeatureSelectionNode", inputs=["ConcatenationNode.output_1"])
     big_five_classifier = BigFiveClassifierNode(model_paths=cf_model_paths, thresholds=cf_thresholds)
     big_five_pipeline.add_node(component=big_five_classifier, name="BigFiveClassifierNode", inputs=["BigFiveFeatureSelectionNode.output_1"])
+
+    big_five_classification_evaluator = BigFiveClassificationEvaluator()
+    big_five_pipeline.add_node(component=big_five_classification_evaluator, name="BigFiveClassificationEvaluatorNode", inputs=["ConversationHistoryRetreiver.output_1"])
+
     response_generator = BigFiveResponseGenerator()
-    big_five_pipeline.add_node(component=response_generator, name="BigFiveResponseGenerator", inputs=["BigFiveClassifierNode.output_1", "Query"])
+    big_five_pipeline.add_node(component=response_generator, name="BigFiveResponseGenerator", inputs=["BigFiveClassifierNode.output_1", "BigFiveClassificationEvaluatorNode.output_1"])
 
     return big_five_pipeline

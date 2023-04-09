@@ -1,0 +1,19 @@
+artifact_path: extraversion_classifier
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.8.16
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.2.2
+mlflow_version: 2.2.2
+model_uuid: 3fd8624910754774b0a222583199c606
+run_id: d77c711241424dd3873e03f2c1665580
+utc_time_created: '2023-04-08 16:06:50.831351'

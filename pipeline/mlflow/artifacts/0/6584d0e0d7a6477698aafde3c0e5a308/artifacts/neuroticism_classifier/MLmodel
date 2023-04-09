@@ -1,0 +1,19 @@
+artifact_path: neuroticism_classifier
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.8.16
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.2.2
+mlflow_version: 2.2.2
+model_uuid: b2a3980315ab412f9a231bb6e5156e86
+run_id: 6584d0e0d7a6477698aafde3c0e5a308
+utc_time_created: '2023-04-08 15:57:51.699969'

@@ -1,0 +1,11 @@
+artifact_path: embedding-normalizer
+flavors:
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.2.2
+mlflow_version: 2.2.2
+model_uuid: 2b285e3e39c44a93aac4a9dfa2ddc0bb
+run_id: 1e3eaa6540854d8c89274f16ca6abbe4
+utc_time_created: '2023-04-08 14:14:58.513973'

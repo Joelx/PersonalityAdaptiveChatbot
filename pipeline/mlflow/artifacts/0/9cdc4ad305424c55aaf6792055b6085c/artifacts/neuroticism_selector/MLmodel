@@ -1,0 +1,11 @@
+artifact_path: neuroticism_selector
+flavors:
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.2.2
+mlflow_version: 2.2.2
+model_uuid: 358c3f79012f46b295404238f04aa276
+run_id: 9cdc4ad305424c55aaf6792055b6085c
+utc_time_created: '2023-04-08 14:13:55.300294'

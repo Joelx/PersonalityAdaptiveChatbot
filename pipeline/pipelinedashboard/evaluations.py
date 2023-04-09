@@ -65,7 +65,7 @@ class Bot2BotConversator:
         )
         self.memory = ConversationBufferMemory(return_messages=True, ai_prefix="Human", human_prefix="Chatbot")
         self.conversation = ConversationChain(memory=self.memory, prompt=self.prompt, llm=self.llm)
-        self.MAX_TOKEN_SIZE = 2048 # Arbitraty amount smaller than 4096. We don't want the conversations to be too long.
+        self.MAX_TOKEN_SIZE = 1024 # Arbitraty amount smaller than 4096. We don't want the conversations to be too long.
         self.current_tokens = self._count_tokens(self.template)
 
     def _count_tokens(self, text: Text) -> int:
@@ -133,10 +133,11 @@ class Bot2BotConversator:
 
 
 class RasaChatClient:
-    def __init__(self, server_url, socketio_path):
+    def __init__(self, server_url, socketio_path, sender_id):
         self.conversator = Bot2BotConversator()
         self.server_url = server_url
         self.socketio_path = socketio_path
+        self.sender_id = sender_id
         self.sio = socketio.Client()
         self.sio.on('connect', self.on_connect)
         self.sio.on('connect_error', self.on_connect_error)
@@ -161,14 +162,14 @@ class RasaChatClient:
         #print('Bot uttered:', response)
         if 'text' in response:
             print(f"Chatbot: {response['text']}")
-            send_to_rabbitmq(json.dumps({"ai_bot_uttered": response['text']}), "eval_bot_message")
+            send_to_rabbitmq(json.dumps({"ai_bot_uttered": response['text']}), queue="eval_bot_message", sender_id=self.sender_id)
             self.generate_conversator_response(response['text'])
 
     def generate_conversator_response(self, message):
         #print("Called conversation generator")
         conversator_response = self.conversator.chat(message)
         #print(f"Human-Bot: {conversator_response}")
-        send_to_rabbitmq(json.dumps({"human_bot_uttered": conversator_response}), "eval_bot_message")
+        send_to_rabbitmq(json.dumps({"human_bot_uttered": conversator_response}), queue="eval_bot_message", sender_id=self.sender_id)
         self.utter(conversator_response)
         if self.conversator.current_tokens >= self.conversator.MAX_TOKEN_SIZE:
             print("Max token size exceeded. Disconnecting...")

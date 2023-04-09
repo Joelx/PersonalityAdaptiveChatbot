@@ -1,0 +1,11 @@
+artifact_path: conscientiousness_selector
+flavors:
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.2.2
+mlflow_version: 2.2.2
+model_uuid: e43a93154bc24078831a8163cae3c230
+run_id: 02dea827c7ce4d7c96312e373e2142f8
+utc_time_created: '2023-04-08 17:44:52.472666'

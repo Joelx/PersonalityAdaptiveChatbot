@@ -18,6 +18,7 @@ import evaluations
 import os
 import time
 import urllib.parse
+import re
 
 EXTERNAL_STYLESHEETS = ["https://codepen.io/chriddyp/pen/bWLwgP.css", dbc.themes.BOOTSTRAP]
 
@@ -290,22 +291,23 @@ app.layout = html.Div(children=[HEADER, BODY])
     Output("eval-button", "disabled"),
     Output("eval-alert", "style"),
     Output('eval-conversation-html', 'children', allow_duplicate=True),
-    Input("eval-button", "n_clicks"),
+    [Input("eval-button", "n_clicks"),
+     Input('session-id-field', 'children')],
     prevent_initial_call=True
 )
-def eval_button_callback(n_clicks):
+def eval_button_callback(n_clicks, sender_id):
     print("Eval button clicked")
     if not n_clicks:
         return [False, {"display": "none"}, ""]
     
     time.sleep(2) # wait for 2 seconds
-    return asyncio.run(start_eval_run(n_clicks)) # execute start_eval_run coroutine after 2 seconds
+    return asyncio.run(start_eval_run(n_clicks, sender_id)) # execute start_eval_run coroutine after 2 seconds
 
-async def start_eval_run(n_clicks):
+async def start_eval_run(n_clicks, sender_id):
     if not n_clicks:
         return [False, {"display": "none"}, ""]
 
-    bot = evaluations.RasaChatClient("https://joel-schlotthauer.com", socketio_path="/rasax/socket.io/")
+    bot = evaluations.RasaChatClient("https://joel-schlotthauer.com", socketio_path="/rasax/socket.io/", sender_id=sender_id)
     bot.connect()
     bot.utter("/start_conversation")
 
@@ -587,7 +589,7 @@ def update_thresholds(openness_threshold,
 
 
 
-def get_classification_html(classification_data, current_user_text):
+def get_classification_html(classification_data):
     if classification_data:
         classes = classification_data['classes']
         probas = classification_data['probabilities']
@@ -615,18 +617,26 @@ def get_test_results_html(test_results_data):
         return html.Div("No test results data")
 
 
-def get_eval_classification(current_user_text):
-    return html.Div("No evaluation classification available") # Currently out of service
-    if current_user_text:
-        eval_classification_html = [html.H6(children="Evaluation Classification by gpt-3.5-turbo:", style={"fontSize": 16})]
-        eval_classifier = evaluations.BigFiveClassificationEvaluator()
-        eval_cf_res = eval_classifier.classify(current_user_text)
-        cf_lines = eval_cf_res.split('\n')
+def get_eval_classification(eval_classification):
+    #return html.Div("No evaluation classification available") # Currently out of service
+    if eval_classification:
+        eval_classification_html = [html.H6(children="Reasoning-based eval. Classification by LLM:", style={"fontSize": 16})]
+        #print(eval_classification)
+        cf_lines = eval_classification.split('\n')
         for line in cf_lines:
-            eval_classification_html.append(html.P(children=line, style={"fontSize": 14, "font-weight": "lighter"}))
-            return html.Div(eval_classification_html)
-        else:
-            return html.Div("No evaluation classification available")
+            # Split the line at the dash (-)
+            parts = re.split(r'\s*-\s*', line, maxsplit=1)
+            if len(parts) == 2:
+                #print(parts)
+                # Make the first part bold and append the second part with a line break
+                eval_classification_html.append(html.P([
+                    html.Span(parts[0], style={"fontWeight": "bold", "fontSize": 14}),
+                    html.Br(),
+                    html.Span(parts[1], style={"fontWeight": "lighter", "fontSize": 12})
+                ]))
+        return eval_classification_html
+    else:
+        return html.Div("No evaluation classification available")
 
 
 @app.callback(
@@ -642,6 +652,7 @@ def get_eval_classification(current_user_text):
 )
 def update_classification(n, sender_id, previous_classification, prev_eval_cf, prev_test_results, current_user_text):
     classification_body = receive_rabbitmq(queue="classification", sender_id=sender_id)
+    evaluation_classification_body = receive_rabbitmq(queue="eval_classification", sender_id=sender_id)
     test_results_body = receive_rabbitmq(queue="big_five_test_results", sender_id=sender_id)
 
     return_values = [
@@ -653,25 +664,27 @@ def update_classification(n, sender_id, previous_classification, prev_eval_cf, p
     if classification_body: 
         classification_data = json.loads(classification_body) if classification_body else None   
         if classification_data:
-            classification_html = get_classification_html(classification_data, current_user_text)
+            classification_html = get_classification_html(classification_data)
             return_values[0] = classification_html
     else:
         if previous_classification:
             return_values[0] = previous_classification
 
+    if evaluation_classification_body:
+        eval_classification_data = json.loads(evaluation_classification_body) if evaluation_classification_body else None 
+        if classification_data:
+            current_user_text_html = get_eval_classification(eval_classification_data)
+            return_values[1] = current_user_text_html
+    else:
+        if prev_eval_cf:
+            return_values[1] = prev_eval_cf
+
     if test_results_body:
         test_results_data = json.loads(test_results_body) if test_results_body else None     
         if test_results_data:
             test_results_html = get_test_results_html(test_results_data)
-            return_values[1] = test_results_html
+            return_values[2] = test_results_html
     else: 
-        if prev_eval_cf:
-            return_values[1] = prev_eval_cf
-
-    if current_user_text:
-        current_user_text_html = get_eval_classification(current_user_text)
-        return_values[2] = current_user_text_html
-    else:
         if prev_test_results:
             return_values[2] = prev_test_results
         
@@ -688,7 +701,7 @@ def update_classification(n, sender_id, previous_classification, prev_eval_cf, p
     State('prompt-output-row', 'children')
 )
 def update_prompt(n, sender_id, previous_prompt):
-    body = receive_rabbitmq(queue="prompt", sender_id=sender_id)
+    body = receive_rabbitmq(queue="current-prompt", sender_id=sender_id)
     # If a message was received, decode and return the message  
     if body:        
         data = json.loads(body)

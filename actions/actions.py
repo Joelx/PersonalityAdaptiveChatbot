@@ -12,6 +12,7 @@ from .neoffi import ComputeNeoFFI as neoffi
 class ActionHaystack(Action):
     def __init__(self):
         self.url = "https://joel-schlotthauer.com/pipeline/query"
+        #self.url = "http://localhost:8001/query" # Local test URL
 
     def name(self) -> Text:
         return "call_haystack"
@@ -59,6 +60,17 @@ class ActionHaystack(Action):
             response = requests.request("POST", self.url, headers=headers, json=payload).json()
         except requests.exceptions.HTTPError as err:
             print ("Http Error:", err)
+
+        print(response)
+        if response["classification_result"]:
+            classification_results = response["classification_result"]
+        else: 
+            classification_results = "No prediction could be fetched yet"
+
+        if response["eval_classification_result"]:
+            eval_classification_results = response["eval_classification_result"]
+        else: 
+            eval_classification_results = "No evaluation prediction could be fetched yet"
         
         if response["response"]:
             answer = response["response"]
@@ -67,7 +79,10 @@ class ActionHaystack(Action):
 
         dispatcher.utter_message(text=answer)
 
-        return []
+        return [
+            SlotSet("classification_results", classification_results),
+            SlotSet("eval_classification_results", eval_classification_results)
+        ]
     
     def _parse_rasa_events_to_conversation(self, events: Dict) -> Text:
         """Fetch story from running Rasa X instance by conversation ID.
