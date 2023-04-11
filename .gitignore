@@ -274,3 +274,8 @@ rasa-webservice.tar
 # Temporary
 
 k8s-configs/
+
+
+# mlflow
+artifacts/
+mlflow.db

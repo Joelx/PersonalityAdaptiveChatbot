@@ -5,7 +5,7 @@ import os
 rabbit_username = os.environ['RABBITMQ_USERNAME']
 rabbit_password = os.environ['RABBITMQ_PASSWORD']
 erlang_cookie = os.environ['RABBITMQ_ERLANG_COOKIE']
-rabbit_host = "10.1.81.44"
+rabbit_host = "rasax-release-rabbit.rasax.svc.cluster.local"
 rabbit_port = 5672
 
 """

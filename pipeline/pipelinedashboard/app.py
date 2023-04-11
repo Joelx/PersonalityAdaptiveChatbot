@@ -301,6 +301,7 @@ def eval_button_callback(n_clicks, sender_id):
         return [False, {"display": "none"}, ""]
     
     time.sleep(2) # wait for 2 seconds
+    return [False, {"display": "none"}, "Currently out of service"]
     return asyncio.run(start_eval_run(n_clicks, sender_id)) # execute start_eval_run coroutine after 2 seconds
 
 async def start_eval_run(n_clicks, sender_id):
@@ -672,7 +673,7 @@ def update_classification(n, sender_id, previous_classification, prev_eval_cf, p
 
     if evaluation_classification_body:
         eval_classification_data = json.loads(evaluation_classification_body) if evaluation_classification_body else None 
-        if classification_data:
+        if eval_classification_data:
             current_user_text_html = get_eval_classification(eval_classification_data)
             return_values[1] = current_user_text_html
     else:

@@ -1,12 +1,24 @@
 # Dockerfile
 FROM python:3.8-slim
 
-RUN pip install mlflow
+# Set the working directory to /app
+#WORKDIR /app
 
-# Copy the mlruns directory and the mlflow.db file into the Docker image
-COPY artifacts /artifacts
-COPY mlflow.db /mlflow.db
+RUN apt-get update && apt-get install -y --no-install-recommends \
+vim \
+&& \
+apt-get clean && \
+rm -rf /var/lib/apt/lists/*
 
+# Install the necessary packages
+RUN pip install mlflow==2.2.2
+
+# Copy the current directory contents into the container at /app
+#COPY . /app
+#COPY mlflow.db /mlflow.db
+
+# Expose the desired port
 EXPOSE 8003
 
-CMD ["mlflow", "server", "--host", "0.0.0.0", "--port", "8003", "--backend-store-uri", "sqlite:///mlflow.db", "--default-artifact-root", "./artifacts"]
+# Start the MLflow server
+CMD ["mlflow", "server", "--host", "0.0.0.0", "--port", "8003", "--backend-store-uri", "sqlite:///models/mlflow.db", "--default-artifact-root", "/models/artifacts"]

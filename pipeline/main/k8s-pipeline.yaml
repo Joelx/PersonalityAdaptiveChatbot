@@ -16,6 +16,7 @@ spec:
       containers:
       - name: pipeline-fastapi
         image: joes4/pipeline-fastapi:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8001
         env:
@@ -38,7 +39,7 @@ spec:
               key: rabbitmq-erlang-cookie
         volumeMounts:
         - name: pvc-7696932e-353a-4efc-b6f8-c880c2f61f53
-          mountPath: /app/models
+          mountPath: /models
       volumes:
       - name: pvc-7696932e-353a-4efc-b6f8-c880c2f61f53
         persistentVolumeClaim:

@@ -39,20 +39,47 @@ from RabbitMQ import *
 import mlflow.sklearn
 
 # Set MLflow tracking server URI
-mlflow.set_tracking_uri("10.1.81.44:8003")
+mlflow.set_tracking_uri("http://mlflow.rasax.svc.cluster.local:8003")
 mlflow.set_experiment("production_experiment")
 
 # We want to handle relative paths like Django does it:
 # Define this as the root dir of the pipeline project
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__)) 
-MODEL_PATH = ROOT_DIR + "/models/"
+#ROOT_DIR = os.path.dirname(os.path.abspath(__file__)) 
+#MODEL_PATH = ROOT_DIR + "/models/"
+MODEL_PATH = "/models/" # Mount path of PV
+
+artifacts = [] # Untidy, but this is an afterthought.
 
 class ConversationHistoryRetreiver(BaseComponent):    
     outgoing_edges = 1
         
-    def _parse_conversation_history(self, conversation_history, sender='user') -> Text:
-        user_text = ' '.join([event.get('message', '') for event in conversation_history if event.get('event') == sender])
-        return user_text
+    def _parse_conversation_history(self, conversation_history, sender='user') -> [Text, Text]:
+        text = ' '.join([event.get('message', '') for event in conversation_history if event.get('event') == sender])
+        
+        # The test result may be in the bot string. we dont want that. 
+        if sender=='cleo':
+            pattern = r"Danke! Hier ist deine Testauswertung: Neurotizismus: (\d{1,3}) % Extraversion: (\d{1,3}) % Offenheit für Erfahrung: (\d{1,3}) % Verträglichkeit: (\d{1,3}) % Gewissenhaftigkeit: (\d{1,3}) %"
+            # Search for the pattern in the input text
+            match = re.search(pattern, text)
+            if match:
+                # Extract the matched percentages
+                neuroticism = match.group(1)
+                extraversion = match.group(2)
+                openness = match.group(3)
+                agreeableness = match.group(4)
+                conscientiousness = match.group(5)
+
+                # Format the result string
+                result = f"Neuroticism,Extraversion,Openness,Agreeableness,Conscientiousness,{neuroticism},{extraversion},{openness},{agreeableness},{conscientiousness}"
+                print(f"EXTRACTED TEST: {result}")
+
+                # Remove the matched string from the original text
+                text = re.sub(pattern, "", text)
+                return text, result
+            else:
+                print("Test pattern not found in the text.")
+
+        return text, ""
     
     def _log_mlflow(self, text: Text, run_id: str, name: str) -> None:
         # Log text as an artifact in MLflow
@@ -69,14 +96,23 @@ class ConversationHistoryRetreiver(BaseComponent):
         os.remove(temp_file_path)
     
     def run(self, query: List[Dict[Text, Text]]) -> Dict[Text, Text]:
+        global artifacts
+        artifacts = []
         print("--------- Query ---------")
         print(query)
-        user_conversation_history = self._parse_conversation_history(query, sender='user')
-        bot_conversation_history = self._parse_conversation_history(query, sender='cleo')
+        user_conversation_history, dummy = self._parse_conversation_history(query, sender='user')
+        bot_conversation_history, test_result = self._parse_conversation_history(query, sender='cleo')
         sender_id = query[-1]["sender_id"] # Sender id is the last element
         run_id = query[-1]["run_id"]
-        self._log_mlflow(user_conversation_history, run_id, name='user_conversation_history')
-        self._log_mlflow(bot_conversation_history, run_id, name='bot_conversation_history')
+        artifacts.append({
+            'user_conversation': user_conversation_history,
+            'bot_conversation' : bot_conversation_history,
+        })
+        artifacts.append({
+            'actual_test_result': test_result
+        })
+        #self._log_mlflow(user_conversation_history, run_id, name='user_conversation_history')
+        #self._log_mlflow(bot_conversation_history, run_id, name='bot_conversation_history')
         print(f"SENDER_ID: {sender_id}")
         print(f"RUN_ID: {run_id}")
         output={
@@ -98,13 +134,15 @@ class TfidfVectorizerNode(BaseComponent):
     
     def __init__(self, model_path = MODEL_PATH + "vectorizers/idf_vectorizer1.2.2.joblib"):
         self.model_path = model_path
+        self.model_uri = "models:/big_five_tfidf_vectorizer/Production"
         try:
-            self.vectorizer = mlflow.sklearn.load_model(model_uri=f"models:/big_five_tfidf_vectorizer/Production")
+            self.vectorizer = mlflow.sklearn.load_model(model_uri=self.model_uri)
             print(f"MLFLOW ---- {self.vectorizer}")
             #self.vectorizer = joblib.load(model_path)
             #print(f"The model {self.model_path} was pickled using sklearn version {self.vectorizer.__getstate__()['_sklearn_version']}")
         except Exception as e:
-            print(f"Error loading vectorizer: {e}")
+            print(f"Error loading vectorizer: {e}.")
+            print(f"Tried loading model from the following URI: {self.model_uri}")
             self.vectorizer = None
     
     def _tfidf_embeddings(self) -> Dict[Text, float]:
@@ -206,6 +244,7 @@ class NormalizerNode(BaseComponent):
             #print(f"The model {self.model_path} was pickled using sklearn version {self.normalizer.__getstate__()['_sklearn_version']}")
         except Exception as e:
             print(f"Error loading vectorizer: {e}")
+            print(f"Tried loading model from the following URI: {self.model_uri}")
             self.normalizer = None
             
     def _normalize(self, vectors: np.array(float)):
@@ -479,43 +518,24 @@ class BigFiveClassifierNode(BaseComponent):
             print(self.thresholds)
             send_to_rabbitmq(json.dumps(self.thresholds), queue="actual-thresholds", sender_id=sender_id)
 
-        combined_df_list = []
+        for dimension, features in selected_features.items():
+            try:
+                #model_name = f"{dimension}_classifier"
+                #mlflow.set_tag(f"{dimension}_model_name", model_name)
 
-        with mlflow.start_run(run_id=run_id):
-            for dimension, features in selected_features.items():
-                try:
-                    model_name = f"{dimension}_classifier"
-                    mlflow.set_tag(f"{dimension}_model_name", model_name)
+                # Actual classification
+                predicted_proba[dimension] = self.models[dimension].predict_proba(features)[:, 1]
+                predicted_classes[dimension] = np.where(predicted_proba[dimension] >= self.thresholds[dimension], 1, 0)
 
-                    # Actual classification
-                    predicted_proba[dimension] = self.models[dimension].predict_proba(features)[:, 1]
-                    predicted_classes[dimension] = np.where(predicted_proba[dimension] >= self.thresholds[dimension], 1, 0)
+            except Exception as e:
+                print(f"Error predicting with model: {e}")
 
-                    # Combine probabilities, and predictions into a single DataFrame
-                    probabilities_df = pd.DataFrame(predicted_proba[dimension], columns=[f"{dimension}_probability"])
-                    predictions_df = pd.DataFrame(predicted_classes[dimension], columns=[f"{dimension}_prediction"])
-                    dimension_combined_df = pd.concat([probabilities_df, predictions_df], axis=1)
-                    combined_df_list.append(dimension_combined_df)
-                except Exception as e:
-                    print(f"Error predicting with model: {e}")
-
-            # Merge all dimension DataFrames
-            final_combined_df = combined_df_list[0]
-            for df in combined_df_list[1:]:
-                final_combined_df = pd.concat([final_combined_df, df.iloc[:, -2:]], axis=1)
-
-            # Create a temporary file and save the final combined DataFrame to it
-            with tempfile.NamedTemporaryFile(mode="w+", suffix=".csv", delete=False) as temp_file:
-                final_combined_df.to_csv(temp_file, index=False)
-                temp_file.flush()
-
-                # Log the temporary file as an artifact
-                mlflow.log_artifact(temp_file.name, artifact_path="combined_predictions.csv")
                     
         predictions = {
             "classes": predicted_classes,
             "probabilities": predicted_proba
         }
+
 
         predictions_json = predictions.copy()
         # Convert NumPy arrays to Python lists. Required for json convertion
@@ -532,6 +552,10 @@ class BigFiveClassifierNode(BaseComponent):
 
     def run(self, selected_features: Dict[str, np.ndarray], sender_id: str, run_id: str) -> Dict[str, Dict[str, np.ndarray]]:
         predictions = self._predict(selected_features, sender_id=sender_id, run_id=run_id)
+        global artifacts
+        artifacts.append({
+            "pipeline_predictions": json.dumps(predictions)
+        })
         print("----------- Predictions --------------")
         print(predictions)
         output={
@@ -568,7 +592,8 @@ class BigFiveClassificationEvaluator(BaseComponent):
         # {text}
         # Do the classification:"""
         self.template = """Please do a best effort binary classification for the five big five traits neuroticism, extraversion, openness for experience, agreeableness and conscientiousness for the following German text. 
-        Please classify with a binary 1 if you think the peculiarity of the dimension is above average in that person or 0 if its below average. Try to also include a probability score from 1-100:
+        Please classify with a binary 1 if you think the peculiarity of the dimension is above average in that person or 0 if its below average. Try to also include a score from 1-100 how pronounced you think the dimension is in this person.
+        Also add your reasoning behind your analysis in 1 or 2 short sentences.
         
         German Human Text:
         {text}
@@ -596,7 +621,13 @@ class BigFiveClassificationEvaluator(BaseComponent):
 
     def run(self, conversation_history: Text, sender_id: str, run_id: str) -> Text:
         predictions = self._predict(conversation_history)
-        self._log_mlflow(predictions, run_id, "evaluation_classification_result")
+
+        global artifacts
+        artifacts.append({
+            "evaluation_classification_result": predictions
+        })
+        
+        #self._log_mlflow(predictions, run_id, "evaluation_classification_result")
         print("----------- Predictions --------------")
         print(predictions)
         output={
@@ -625,7 +656,15 @@ Cleo is constantly learning and improving and tries to get to know the users bet
 For that, Cleo is an expert in psychology and soziology. It is specialized on behaviour and personality trait recognition from speech via linguistic cues. 
 For modelling of personality and behaviour it uses the widely regarded and scientifically sound Big Five Personality model. 
 Cleo adapts to the Big Five Personality traits of the user in a counseling chat scenario based on it's professional knowledge of the Big Five and it's linguistic cues.
-Cleo gets the detected Big Five personality traits of the current user dynamically from another pipeline component. At the start they are not too reliable, but with each message of the user, the personality traits get updated and become more accurate. The score on each dimension ranges from 1 to 100, with 1 representing the minimum and 100 the maximum score on the respective Big Five personality trait.\n
+here are some examples for adoption the the Big Five traits:
+1. Openness: If the user scores high on this trait, Cleo would try to engage them in creative and imaginative exercises, and encourage them to explore new ideas and perspectives. Cleo would also use abstract and metaphorical language to help them express their thoughts and feelings.
+2. Conscientiousness: If the user scores high on this trait, Cleo would focus on setting clear goals and expectations, and providing them with structured and organized guidance. Cleo would also use precise and formal language to help them understand and follow through on their action plans.
+3. Extraversion: If the user scores high on this trait, Cleo would try to create a warm and friendly atmosphere, and encourage them to share their thoughts and feelings openly. Cleo would also use language that is upbeat and positive, and focus on social interaction and connection.
+4. Agreeableness: If the user scores high on this trait, Cleo would focus on building rapport and trust, and validating their emotions and experiences. Cleo would also use language that is empathetic and supportive, and focus on finding common ground and solutions that work for both Cleo and the user.
+5. Neuroticism: If the user scores high on this trait, Cleo would focus on providing emotional support and validation, and helping them manage their anxiety and stress. Cleo would use language that is calming and reassuring, and focus on developing coping strategies and problem-solving skills.
+Overall, Cleo's approach would be tailored to the user's individual needs and preferences, and would take into account their unique personality profile. By adapting it's language and approach to their personality traits, Cleo would be better able to connect with them and provide effective counseling support.
+
+Cleo gets the detected Big Five personality traits of the current user dynamically from another pipeline component. At the start they are not too reliable, but with each message of the user, the personality traits get updated and become more accurate.\n
 Cleo gets the current Big Five personality traits in the following comma separated format: 'neuroticism: [value], extraversion: [value], openness: [value], agreeableness: [value], conscientiousness: [value]' 
 Each trait has its own [value]. If [value] is [1], the respective trait is considered to be pronounced in the user. If it's [0] it is not.
 
@@ -655,6 +694,13 @@ Cleo:"""
         print(token_count)
         return token_count
 
+    def _truncate_history(text: str, max_token_size: int) -> str:
+        tokens = re.findall(r'\S+|\n', text)
+        if len(tokens) > max_tokens:
+            tokens = tokens[-1000:]
+        truncated_text = "".join(tokens)
+        return truncated_text
+
     def _parse_full_conversation(self, conversation: List[Dict[str, str]]) -> Tuple[str, str]:
         current_user_input = [event['message'] for event in reversed(conversation) if event.get('event') == 'user'][0]
         print(f"---- CURRENT USER INPUT ---\n{current_user_input}")
@@ -676,8 +722,11 @@ Cleo:"""
         conversation_history, current_user_input = self._parse_full_conversation(inputs[0]['query'])
         print("---------- Full Conversation history ------------")
         print(conversation_history) 
-        res = self.conversation.run(big_five=big_five_string, history=conversation_history, input=current_user_input)    
         token_size = self._count_tokens(" ".join([self.template, big_five_string, conversation_history, res]))
+        if token_size >= (self.MAX_TOKEN_SIZE-1000):
+            conversation_history = self._truncate_history(conversation_history)
+
+        res = self.conversation.run(big_five=big_five_string, history=conversation_history, input=current_user_input)    
         print("------ LLM Chain Result -----") 
         
         json_prompt = {
@@ -688,6 +737,10 @@ Cleo:"""
         # Send to dashboard
         send_to_rabbitmq(json.dumps(json_prompt), queue="current-prompt", sender_id=sender_id)
         
+        global artifacts
+        _log_mlflow_batch(artifacts,run_id)
+        artifacts = []
+
         output = {
             'response': res,
             'predictions': inputs[1]['predictions'],
@@ -699,6 +752,20 @@ Cleo:"""
     
     def run_batch(self, predictions: Dict[str, Dict[str, np.ndarray]]) -> Dict[str, np.ndarray]:
         pass
+
+def _log_mlflow_batch(data_list: List[Dict[str, str]], run_id: str) -> None:
+    # Log texts as artifacts in MLflow
+    with tempfile.TemporaryDirectory() as temp_dir:
+        for data_dict in data_list:
+            for name, data in data_dict.items():
+                print(f"writing {name}: {data} to artifact")
+                temp_file_path = os.path.join(temp_dir, f"{name}.txt")
+                with open(temp_file_path, "w") as temp_file:
+                    temp_file.write(data)
+
+        # Make sure to set the MLflow run_id before logging the artifact
+        with mlflow.start_run(run_id=run_id, nested=True):
+            mlflow.log_artifacts(temp_dir)
 
 
 def create_pipeline():

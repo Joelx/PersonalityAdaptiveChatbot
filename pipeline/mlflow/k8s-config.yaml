@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: rasax
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+        - name: mlflow
+          image: joes4/mlflow-server:latest
+          #imagePullPolicy: Always
+          ports:
+            - containerPort: 8003
+          volumeMounts:
+            - name: pvc-7696932e-353a-4efc-b6f8-c880c2f61f53
+              mountPath: /models
+      volumes:
+        - name: pvc-7696932e-353a-4efc-b6f8-c880c2f61f53
+          persistentVolumeClaim:
+            claimName: models-volume-claim
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  namespace: rasax
+spec:
+  selector:
+    app: mlflow
+  ports:
+    - protocol: TCP
+      port: 8003
+      targetPort: 8003
+  type: ClusterIP
+---
+
+
+
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: mlflow-pvc
+#   namespace: rasax
+# spec:
+#   accessModes:
+#     - ReadWriteOnce
+#   resources:
+#     requests:
+#       storage: 10Gi

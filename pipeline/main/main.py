@@ -19,7 +19,7 @@ sender_id_run_map = {}  # A mapping from sender_id to run_id
 
 def start_mlflow_run(session_id):
     if session_id not in sender_id_run_map:
-        with mlflow.start_run():
+        with mlflow.start_run(nested=True):
             mlflow.set_tag("session_id", session_id)
             run_id = mlflow.active_run().info.run_id
             sender_id_run_map[session_id] = run_id

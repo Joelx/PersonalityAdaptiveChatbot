@@ -9,6 +9,12 @@
 		.rw-conversation-container {
 			width: 33vw !important;
 		}
+
+		@media (max-width: 1200px) {
+			.rw-conversation-container, #panel-dashboard {
+				width: 100% !important;
+			}
+		}
 	</style>
 </head>
 <body> 
@@ -35,7 +41,7 @@
 		  //socketUrl: "https://joel-schlotthauer.com",
 		  socketPath: "/rasax/socket.io/",
 		  title: 'Cleo',
-		  //subtitle: 'Persönlichkeitsadaptiver Chatbot',
+		  subtitle: 'This is a DEV environment! Response times are slow. Please be patient.',
 		  profileAvatar: "static/images/sara_avatar.png",
 		  inputTextFieldHint: 'Hier tippen...',
 		},
