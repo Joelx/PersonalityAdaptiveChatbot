@@ -108,7 +108,7 @@ class PolicyTest(Policy):
         **kwargs: Any,
     ) -> List[Dict[Text, Union[Text, float]]]:
         import openai
-        openai.api_key = "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"
+        openai.api_key = ""
 
         print(tracker.latest_message)
         #intent = tracker.latest_message.get("intent", {}).get("name")

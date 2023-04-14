@@ -22,7 +22,7 @@ from rasa.core.constants import (
     POLICY_PRIORITY,
 )
 
-openai.api_key = "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"
+openai.api_key = ""
 
 @DefaultV1Recipe.register(
     [DefaultV1Recipe.ComponentType.POLICY_WITHOUT_END_TO_END_SUPPORT], is_trainable=False

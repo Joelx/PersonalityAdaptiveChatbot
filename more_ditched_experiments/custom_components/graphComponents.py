@@ -40,7 +40,7 @@ class GPT3Completion(GraphComponent):
         print(TrainingData)
         print(TrainingData.nlu_examples)
         print(TrainingData.response_examples)
-        openai.api_key = "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"
+        openai.api_key = ""
         #openai.Model.list()
         for message in messages:
             if 'text' in message.data.keys():
