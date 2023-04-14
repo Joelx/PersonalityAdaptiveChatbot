@@ -279,3 +279,9 @@ k8s-configs/
 # mlflow
 artifacts/
 mlflow.db
+
+# results
+tester_results.txt
+*.log
+parsed_histories.txt
+results/*.txt
