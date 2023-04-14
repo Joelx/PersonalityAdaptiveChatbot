@@ -55,8 +55,8 @@ class GPT3Completion(GraphComponent):
         # from revChatGPT.revChatGPT import Chatbot
         #
         # config = {
-        #     "email": "schlotthauerjo71188@th-nuernberg.de",
-        #     "password": "kFKqDxNBrtnZH35"  # ,
+        #     "email": "",
+        #     "password": ""  # ,
         #     # "session_token": "<SESSION_TOKEN>", # Deprecated. Use only if you encounter captcha with email/password
         #     # "proxy": "<HTTP/HTTPS_PROXY>"
         # }

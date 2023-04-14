@@ -38,7 +38,7 @@
 #             and append the prediction results to the message class."""
 #         import openai
 #
-#         openai.api_key = "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"
+#         openai.api_key = ""
 #         openai.Model.list()
 #
 #         res = openai.Completion.create(
