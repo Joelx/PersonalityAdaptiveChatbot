@@ -30,6 +30,10 @@ metadata:
     cert-manager.io/cluster-issuer: lets-encrypt
     nginx.ingress.kubernetes.io/configuration-snippet: |
       add_header X-Frame-Options "ALLOW-FROM https://joel-schlotthauer.com";
+    nginx.ingress.kubernetes.io/auth-type: "basic"
+    nginx.ingress.kubernetes.io/auth-secret: "basic-auth"
+    nginx.ingress.kubernetes.io/auth-realm: 'Authentication Required - Please provide valid credentials'
+spec:
 spec:
   tls:
   - hosts:
