@@ -694,11 +694,11 @@ Cleo:"""
         print(token_count)
         return token_count
 
-    def _truncate_history(text: str, max_token_size: int) -> str:
+    def _truncate_history(self,text: str) -> str:
         tokens = re.findall(r'\S+|\n', text)
-        if len(tokens) > max_tokens:
+        if len(tokens) > self.MAX_TOKEN_SIZE:
             tokens = tokens[-1000:]
-        truncated_text = "".join(tokens)
+        truncated_text = " ".join(tokens)
         return truncated_text
 
     def _parse_full_conversation(self, conversation: List[Dict[str, str]]) -> Tuple[str, str]:
