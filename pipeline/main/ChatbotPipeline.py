@@ -42,10 +42,6 @@ import mlflow.sklearn
 mlflow.set_tracking_uri("http://mlflow.rasax.svc.cluster.local:8003")
 mlflow.set_experiment("production_experiment")
 
-# We want to handle relative paths like Django does it:
-# Define this as the root dir of the pipeline project
-#ROOT_DIR = os.path.dirname(os.path.abspath(__file__)) 
-#MODEL_PATH = ROOT_DIR + "/models/"
 MODEL_PATH = "/models/" # Mount path of PV
 
 artifacts = [] # Untidy, but this is an afterthought.
@@ -54,26 +50,23 @@ class ConversationHistoryRetreiver(BaseComponent):
     outgoing_edges = 1
         
     def _parse_conversation_history(self, conversation_history, sender='user') -> [Text, Text]:
+        # Concatenate all messages from the specified sender in the conversation history
         text = ' '.join([event.get('message', '') for event in conversation_history if event.get('event') == sender])
         
-        # The test result may be in the bot string. we dont want that. 
+        # If the sender is 'cleo', we need to handle test results in the message
         if sender=='cleo':
             pattern = r"Danke! Hier ist deine Testauswertung: Neurotizismus: (\d{1,3}) % Extraversion: (\d{1,3}) % Offenheit für Erfahrung: (\d{1,3}) % Verträglichkeit: (\d{1,3}) % Gewissenhaftigkeit: (\d{1,3}) %"
-            # Search for the pattern in the input text
+            # Extract the matched percentages
+            # Format the result string and remove the matched string from the original text
             match = re.search(pattern, text)
             if match:
-                # Extract the matched percentages
                 neuroticism = match.group(1)
                 extraversion = match.group(2)
                 openness = match.group(3)
                 agreeableness = match.group(4)
                 conscientiousness = match.group(5)
 
-                # Format the result string
                 result = f"Neuroticism,Extraversion,Openness,Agreeableness,Conscientiousness,{neuroticism},{extraversion},{openness},{agreeableness},{conscientiousness}"
-                print(f"EXTRACTED TEST: {result}")
-
-                # Remove the matched string from the original text
                 text = re.sub(pattern, "", text)
                 return text, result
             else:
@@ -81,19 +74,6 @@ class ConversationHistoryRetreiver(BaseComponent):
 
         return text, ""
     
-    def _log_mlflow(self, text: Text, run_id: str, name: str) -> None:
-        # Log text as an artifact in MLflow
-        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as temp_file:
-            temp_file.write(text.encode())
-            temp_file_path = temp_file.name
-            
-        # Make sure to set the MLflow run_id before logging the artifact
-        mlflow.start_run(run_id=run_id)
-        mlflow.log_artifact(temp_file_path, artifact_path=name)
-        mlflow.end_run()
-
-        # Remove the temporary file after logging it
-        os.remove(temp_file_path)
     
     def run(self, query: List[Dict[Text, Text]]) -> Dict[Text, Text]:
         global artifacts
@@ -111,8 +91,7 @@ class ConversationHistoryRetreiver(BaseComponent):
         artifacts.append({
             'actual_test_result': test_result
         })
-        #self._log_mlflow(user_conversation_history, run_id, name='user_conversation_history')
-        #self._log_mlflow(bot_conversation_history, run_id, name='bot_conversation_history')
+       
         print(f"SENDER_ID: {sender_id}")
         print(f"RUN_ID: {run_id}")
         output={
@@ -137,9 +116,6 @@ class TfidfVectorizerNode(BaseComponent):
         self.model_uri = "models:/big_five_tfidf_vectorizer/Production"
         try:
             self.vectorizer = mlflow.sklearn.load_model(model_uri=self.model_uri)
-            print(f"MLFLOW ---- {self.vectorizer}")
-            #self.vectorizer = joblib.load(model_path)
-            #print(f"The model {self.model_path} was pickled using sklearn version {self.vectorizer.__getstate__()['_sklearn_version']}")
         except Exception as e:
             print(f"Error loading vectorizer: {e}.")
             print(f"Tried loading model from the following URI: {self.model_uri}")
@@ -148,7 +124,6 @@ class TfidfVectorizerNode(BaseComponent):
     def _tfidf_embeddings(self) -> Dict[Text, float]:
         try:
             # transform production data using the loaded vectorizer
-            # tfidf_matrix = self.vectorizer.transform(np.array([text]))
             idf_dict = dict(zip(self.vectorizer.get_feature_names_out(), self.vectorizer.idf_))
             return idf_dict
         except Exception as e:
@@ -167,7 +142,6 @@ class TfidfVectorizerNode(BaseComponent):
 
     def run_batch(self, conversation_history: List[Text]) -> Dict[str, List]:
         conversations = {}
-        #idf_embeddings = {}
         for i, conversation in enumerate(conversation_history):
             conversation_id = f"conversation_{i}"
             embeddings = self._tfidf_embeddings(conversation)
@@ -181,6 +155,7 @@ class FasttextVectorizerNode(BaseComponent):
     def __init__(self, model_path: str = MODEL_PATH + "embeddings/wiki.de.vec.magnitude", embedding_dim: int = 300):
         self.embedding_dim = embedding_dim
         self.model_path = model_path
+        # Load FastText German wiki embedding model
         self.model_url = "https://drive.google.com/uc?id=10ILYDkEFnlrExQwo7_iu2sL2le43Xlcp&export=download&confirm=t&uuid=92d36780-86fc-4fae-b03c-f05653d01849"
         try:
             # Check if the model file exists in the current directory
@@ -199,15 +174,10 @@ class FasttextVectorizerNode(BaseComponent):
     
     def _tfidf_w2v(self, text: Text, idf_dict: Dict[Text, Dict[Text, float]], sender_id: str) -> np.array(List[List[float]]):
         vectors = []
-        words = word_tokenize(text)
-        w2v_vectors = self.model.query(words)
-        print("------ w2v_vectors ---------")
-        print(w2v_vectors)
-        weights = [idf_dict.get(word, 1) for word in words]
-        print("------ Weights ---------")
-        print(weights)
+        words = word_tokenize(text) # Split text into words
+        w2v_vectors = self.model.query(words) # Get FastText vectors
+        weights = [idf_dict.get(word, 1) for word in words] # # Use pretrained tf-idf model to idf-weight the embedding features
         vectors.append(np.average(w2v_vectors, axis = 0, weights = weights))
-
 
         embeddings = {"words": words, "vectors": w2v_vectors.tolist()}
         send_to_rabbitmq(json.dumps(embeddings), queue="embeddings", sender_id=sender_id)
@@ -239,9 +209,7 @@ class NormalizerNode(BaseComponent):
             elif input == "features":
                 self.model_uri = "models:/big_five_feature_normalizer/Production"
 
-            self.normalizer = mlflow.sklearn.load_model(model_uri=self.model_uri)
-            #self.normalizer = joblib.load(model_path)
-            #print(f"The model {self.model_path} was pickled using sklearn version {self.normalizer.__getstate__()['_sklearn_version']}")
+            self.normalizer = mlflow.sklearn.load_model(model_uri=self.model_uri)           
         except Exception as e:
             print(f"Error loading vectorizer: {e}")
             print(f"Tried loading model from the following URI: {self.model_uri}")
@@ -250,11 +218,7 @@ class NormalizerNode(BaseComponent):
     def _normalize(self, vectors: np.array(float)):
         try:
             # transform production data using the loaded normalizer
-            print("-------- Vectors before normalization ---------")
-            print(vectors)
             normalized_vectors = self.normalizer.transform(vectors)
-            print("-------- Vectors after normalization ---------")
-            print(normalized_vectors)
             return normalized_vectors
         except Exception as e:
             print(f"Error loading vectorizer: {e}")
@@ -277,6 +241,7 @@ class BigFiveFeaturizer(BaseComponent):
     outgoing_edges = 1
     
     def __init__(self, model_name_or_path = f"cardiffnlp/twitter-xlm-roberta-base-sentiment"):
+        # Load XLM-RoBERTA sentiment model from HuggingFace
         self.model_name_or_path = model_name_or_path
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name_or_path)
         self.config = AutoConfig.from_pretrained(self.model_name_or_path)
@@ -297,8 +262,7 @@ class BigFiveFeaturizer(BaseComponent):
         encoded_input = self.tokenizer(text, return_tensors='pt')
         output = self.model(**encoded_input)
         scores = output[0][0].detach().numpy()
-        scores = softmax(scores)
-        # [neg, neu, pos]
+        scores = softmax(scores) # Format: [neg, neu, pos]
 
         # Send to dashboard
         sentiment_scores = {"sentiment": scores.tolist()}
@@ -306,13 +270,15 @@ class BigFiveFeaturizer(BaseComponent):
 
         return np.array([scores])
             
+    # Count unicode emojis with the emoji library   
     def _count_emojis(self, s):
         cnt = 0
         for word in word_tokenize(s):
             if emoji.is_emoji(word):
                 cnt += 1
         return cnt
-    
+
+    # Count emojis and emoticons with regex phrases 
     def _emoji_count(self, text):
         emoticons_re = [
             '(\:\w+\:|\<[\/\\]?3|[\(\)\\\D|\*\$][\-\^]?[\:\;\=]|[\:\;\=B8][\-\^]?[3DOPp\@\$\*\\\)\(\/\|])(?=\s|[\!\.\?]|$)']
@@ -362,18 +328,7 @@ class BigFiveFeaturizer(BaseComponent):
         num_punctuations = self._count_punctuations(text)
         sentiment = self._sentiment_analysis(text, sender_id)
         text_features = self._text_features(text)
-        
-        feature_names = ['train_emoji_re',
-                 'num_dots',
-                 'longest_word_length',
-                 'mean_word_length',
-                 'length_in_chars',
-                 'sentiment_neg',
-                 'sentiment_neu',
-                 'senitment_pos',                 
-                 'num_punctuations'
-                 ]
-        
+               
         features = np.hstack((
             emoji_re,
             num_dots,
@@ -435,9 +390,6 @@ class ConcatenationNode(BaseComponent):
             "sender_id": sender_id,
             "run_id": run_id
         }
-        print("\n----------------------")
-        print(output)
-        print("\n----------------------")
         return output, "output_1"
     
     
@@ -454,9 +406,6 @@ class BigFiveFeatureSelectionNode(BaseComponent):
         for dimension, model_path in self.model_paths.items():
             try:
                 self.selectors[dimension] = mlflow.sklearn.load_model(model_uri=f"models:/{dimension}_selector/Production")
-                #self.selectors[dimension] = joblib.load(model_path)
-                #print(self.selectors[dimension])
-                #print(f"The model {model_path} was pickled using sklearn version {self.selectors[dimension].__getstate__()['_sklearn_version']}")
             except Exception as e:
                 print(f"Error loading selector: {e}")
                 self.selectors = None
@@ -499,9 +448,8 @@ class BigFiveClassifierNode(BaseComponent):
 
         for dimension, model_path in self.model_paths.items():
             try:
+                # Load our pretrained classification models from the model registry
                 self.models[dimension] = mlflow.sklearn.load_model(model_uri=f"models:/{dimension}_classifier/Production")
-                #self.models[dimension] = joblib.load(model_path)
-                #print(f"The model {model_path} was pickled using sklearn version {self.models[dimension].__getstate__()['_sklearn_version']}")
             except Exception as e:
                 print(f"Error loading model: {e}")
                 self.models = None
@@ -514,28 +462,21 @@ class BigFiveClassifierNode(BaseComponent):
         body = receive_rabbitmq(queue="thresholds", sender_id=sender_id)
         if body:
             self.thresholds = json.loads(body)
-            print("------ THRESHOLDS ------------")
-            print(self.thresholds)
             send_to_rabbitmq(json.dumps(self.thresholds), queue="actual-thresholds", sender_id=sender_id)
 
         for dimension, features in selected_features.items():
             try:
-                #model_name = f"{dimension}_classifier"
-                #mlflow.set_tag(f"{dimension}_model_name", model_name)
-
-                # Actual classification
+                # Predict the Big Five Classification!
                 predicted_proba[dimension] = self.models[dimension].predict_proba(features)[:, 1]
                 predicted_classes[dimension] = np.where(predicted_proba[dimension] >= self.thresholds[dimension], 1, 0)
 
             except Exception as e:
                 print(f"Error predicting with model: {e}")
-
                     
         predictions = {
             "classes": predicted_classes,
             "probabilities": predicted_proba
         }
-
 
         predictions_json = predictions.copy()
         # Convert NumPy arrays to Python lists. Required for json convertion
@@ -574,6 +515,7 @@ class BigFiveClassificationEvaluator(BaseComponent):
 
     def __init__(self):
         self.llm = ChatOpenAI(temperature=0)
+        # Alternative Prompt that also worked well.
         # self.template = """You are a powerful AI model for text classification and with comprehensive knowledge of the Big Five personality model. 
         # This knowledge is backed up by scientific research and literature that describes the five traits of the Big Five model and their impact on peoples 
         # individual writing style through linguistic cues. 
@@ -605,20 +547,6 @@ class BigFiveClassificationEvaluator(BaseComponent):
         cf_result = llm_chain.run(text=text)
         return cf_result
     
-    def _log_mlflow(self, text: Text, run_id: str, name: str) -> None:
-        # Log text as an artifact in MLflow
-        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as temp_file:
-            temp_file.write(text.encode())
-            temp_file_path = temp_file.name
-            
-        # Make sure to set the MLflow run_id before logging the artifact
-        mlflow.start_run(run_id=run_id)
-        mlflow.log_artifact(temp_file_path, artifact_path=name)
-        mlflow.end_run()
-
-        # Remove the temporary file after logging it
-        os.remove(temp_file_path)
-
     def run(self, conversation_history: Text, sender_id: str, run_id: str) -> Text:
         predictions = self._predict(conversation_history)
 
@@ -626,8 +554,7 @@ class BigFiveClassificationEvaluator(BaseComponent):
         artifacts.append({
             "evaluation_classification_result": predictions
         })
-        
-        #self._log_mlflow(predictions, run_id, "evaluation_classification_result")
+
         print("----------- Predictions --------------")
         print(predictions)
         output={
@@ -687,6 +614,7 @@ Cleo:"""
         self.MAX_TOKEN_SIZE = 4096
         self.conversation = LLMChain(llm=self.llm, prompt=self.chat_prompt, verbose=True)
 
+    # Count tokens for ConversationWindowBufferMemory 
     def _count_tokens(self, text: Text) -> int:
         tokens = re.findall(r'\S+|\n', text)
         print("------ Token Size of current Prompt ------")
@@ -694,11 +622,12 @@ Cleo:"""
         print(token_count)
         return token_count
 
-    def _truncate_history(self,text: str) -> str:
+    # If token limit is exceeded, truncate the history
+    def _truncate_history(text: str, max_token_size: int) -> str:
         tokens = re.findall(r'\S+|\n', text)
-        if len(tokens) > self.MAX_TOKEN_SIZE:
+        if len(tokens) > max_tokens:
             tokens = tokens[-1000:]
-        truncated_text = " ".join(tokens)
+        truncated_text = "".join(tokens)
         return truncated_text
 
     def _parse_full_conversation(self, conversation: List[Dict[str, str]]) -> Tuple[str, str]:
@@ -716,13 +645,12 @@ Cleo:"""
     def run(self, inputs: List[dict]) -> Dict[str, Dict[str, np.ndarray]]:   
         sender_id = inputs[0]['sender_id']
         run_id = inputs[0]['run_id']
-        print("---------- INPUTS ------------")
-        print(inputs)      
+   
         big_five_string = self._parse_big_five_precictions(inputs[1]['predictions']['classes'])
         conversation_history, current_user_input = self._parse_full_conversation(inputs[0]['query'])
-        print("---------- Full Conversation history ------------")
-        print(conversation_history) 
-        token_size = self._count_tokens(" ".join([self.template, big_five_string, conversation_history, res]))
+
+        # Count the full prompt size. If we are coming near the 4096 token cap, we need to truncate
+        token_size = self._count_tokens(" ".join([self.template, big_five_string, conversation_history]))
         if token_size >= (self.MAX_TOKEN_SIZE-1000):
             conversation_history = self._truncate_history(conversation_history)
 
@@ -737,6 +665,7 @@ Cleo:"""
         # Send to dashboard
         send_to_rabbitmq(json.dumps(json_prompt), queue="current-prompt", sender_id=sender_id)
         
+        # Log all collected artifacts in the MLflow registry. This is super slow.
         global artifacts
         _log_mlflow_batch(artifacts,run_id)
         artifacts = []
@@ -753,6 +682,10 @@ Cleo:"""
     def run_batch(self, predictions: Dict[str, Dict[str, np.ndarray]]) -> Dict[str, np.ndarray]:
         pass
 
+# We are passing a global artifact variable through our pipeline, collecting data.
+# This function then logs all artifacts in the MLflow registry at once. 
+# This is a bit untidy and slow. For development, it works,
+# howeverm, we definitely want to improve on this!
 def _log_mlflow_batch(data_list: List[Dict[str, str]], run_id: str) -> None:
     # Log texts as artifacts in MLflow
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -762,14 +695,15 @@ def _log_mlflow_batch(data_list: List[Dict[str, str]], run_id: str) -> None:
                 temp_file_path = os.path.join(temp_dir, f"{name}.txt")
                 with open(temp_file_path, "w") as temp_file:
                     temp_file.write(data)
-
-        # Make sure to set the MLflow run_id before logging the artifact
         with mlflow.start_run(run_id=run_id, nested=True):
             mlflow.log_artifacts(temp_dir)
 
 
 def create_pipeline():
 
+    # Fill models paths and thresholds with fallback values of local files.
+    # However, they will get overwritten by the MLflow models,
+    # if everything works correctly.
     sf_model_paths = {
         "neuroticism": MODEL_PATH + "feature_selectors/neuroticism_sf_selector2.joblib",
         "extraversion": MODEL_PATH + "feature_selectors/extraversion_sf_selector2.joblib",
@@ -792,6 +726,7 @@ def create_pipeline():
         "conscientiousness": 0.316
     }
 
+    # Construct the pipeline component by component.
     big_five_pipeline = Pipeline()
     history_retreiver = ConversationHistoryRetreiver()
     big_five_pipeline.add_node(component=history_retreiver, name="ConversationHistoryRetreiver", inputs=["Query"])

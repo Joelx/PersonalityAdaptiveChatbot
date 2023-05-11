@@ -17,6 +17,8 @@ big_five_pipeline = create_pipeline()
 
 sender_id_run_map = {}  # A mapping from sender_id to run_id
 
+# Start a unique mlflow run for each sender id. 
+# This way we can separate our artifacts.
 def start_mlflow_run(session_id):
     if session_id not in sender_id_run_map:
         with mlflow.start_run(nested=True):
@@ -27,28 +29,28 @@ def start_mlflow_run(session_id):
         run_id = sender_id_run_map[session_id]
     return run_id
 
+"""
+Main route via POST method.
+Receives requests from the Chatbot Framework.
+"""
 # define a FastAPI endpoint for a Haystack query
 @app.post("/query")
 async def run(queryParams: Dict):
-    conversation_history = queryParams['conversation_history']
-    sender_id = queryParams['sender_id']
-    run_id = start_mlflow_run(sender_id)
+    conversation_history = queryParams['conversation_history'] # Get conversation history from POST 
+    sender_id = queryParams['sender_id'] # Get rasa conversation id from POST
+    run_id = start_mlflow_run(sender_id) # Start unique mlflow run for this conversation
     if conversation_history and sender_id and run_id:
-        conversation_history.append({"event": "system", "sender_id": sender_id, "run_id": run_id})
-        print("--------- Conversation History ----------")
-        print(conversation_history)
+        # Append run and sender id to the object, so that our pipeline has access
+        conversation_history.append({"event": "system", "sender_id": sender_id, "run_id": run_id}) 
 
-        res = big_five_pipeline.run(query=conversation_history)
-        big_five_pipeline.draw()
+        res = big_five_pipeline.run(query=conversation_history) # Run pipeline and get NLG response
         response = {
             "response": res['response'],
             "classification_result": res['predictions'],
             "eval_classification_result": res['eval_predictions']
         }
-        print("----------------- RES --------------------")
-        print(res)
         try:
-            big_five_test_results = queryParams['big_five_test_results']
+            big_five_test_results = queryParams['big_five_test_results'] # Get test results from POST (if exists)
             if big_five_test_results:
                 send_to_rabbitmq(json.dumps(big_five_test_results), queue="big_five_test_results", sender_id=sender_id)
         except KeyError:
@@ -66,7 +68,7 @@ Used for quick tests during development.
 # define a FastAPI endpoint for a Haystack query
 @app.get("/test-query")
 async def run():
-    sender_id = "12345" # Arbitrary tes value
+    sender_id = "12345" # Arbitrary test value
     run_id = start_mlflow_run(sender_id)
     conversation_history = [
         {"event": "user", "message": "hallo!"},
