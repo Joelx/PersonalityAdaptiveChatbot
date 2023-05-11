@@ -36,13 +36,10 @@ def send_to_rabbitmq(data, queue, sender_id):
 
         # Declare the queue
         channel.queue_declare(queue=queue_name)
-
         # Declare the exchange
         channel.exchange_declare(exchange=exchange_name, exchange_type='direct')
-
         # Bind the queue to the exchange
         channel.queue_bind(queue=queue_name, exchange=exchange_name, routing_key=routing_key)
-
         # Publish the data to the exchange
         channel.basic_publish(exchange=exchange_name, routing_key=routing_key, body=data)
 
@@ -55,8 +52,6 @@ def receive_rabbitmq(queue, sender_id):
         exchange_name = queue + '-exchange-' + sender_id
         queue_name = queue + '-queue-' + sender_id
         routing_key = queue + '-' + sender_id
-
-        #print(f"RabbitMQ  RECEIVE data: {exchange_name}, {routing_key}, {queue_name}")
 
         channel.exchange_declare(exchange=exchange_name, exchange_type='direct')
         channel.queue_declare(queue=queue_name)

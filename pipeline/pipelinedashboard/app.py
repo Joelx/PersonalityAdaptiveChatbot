@@ -344,17 +344,6 @@ def update_eval_conversation(n, session_id, current_children):
         raise PreventUpdate
 
 
-"""
-MODEL SELECT
-"""
-# @app.callback(Output('models-output', 'children'), [Input('model-dropdown', 'value')])
-# def display_selected_model(model):
-#     return html.Div([
-#         html.H4(children='Selected model: {}'.format(model), className="lead", style={"margin-left": 6, "margin-top": 6}),
-#         html.P('Description of the {} model: ...'.format(model),
-#                style={"fontSize": 14, "margin-left": 6, "margin-top": 6})
-#     ])
-
 
 """
 TSNE PLOT
