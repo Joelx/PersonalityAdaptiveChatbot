@@ -1,6 +1,6 @@
 # PersonalityAdaptiveChatbot
 
-This repository serves as an archive for the implementation of my Master's thesis, focusing on the creation of a chatbot that adapts its Large Language Model, and transfer learning based responses based on the Big Five personality traits. The project involves a variety of experiments and implementations with the Rasa framework, the Haystack and LangChain frameworks, and the Plotly Dash dashboard framework, among others. The repository is structured into various folders, each containing different components of the project. For a more detailed description of each folder, please see below.
+This repository serves as an archive for the implementation of my Master's thesis, focusing on the creation of a chatbot that adapts its Large Language Model-, and transfer learning-based responses according to the Big Five personality traits of users. The project involves a variety of experiments and implementations with the Rasa framework, the Haystack and LangChain frameworks, and the Plotly Dash dashboard framework, among others. The repository is structured into various folders, each containing different components of the project. For a more detailed description of each folder, please see below.
 
 ## Repository Structure
 
