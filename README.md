@@ -23,7 +23,7 @@ This directory is central to the project, containing various Jupyter notebooks t
 - `big5_detection`: Experiments related to Big Five personality trait modeling and exploration of the developed models.
 - `haystack`: Experiments focusing on building a deployment-ready NLP pipeline with the Haystack framework.
 - `langchain`: Experiments related to the adaptive Natural Language Generation (NLG) components using the LangChain framework. This includes Language Model Likelihood (LLM) evaluation, prompt engineering, and conversation memory.
-- `model_persisting`: Work focused on optimizing and persisting the finalized Big Five modeling using MLFlow.
+- `model_persisting`: Work focused on optimizing and persisting the finalized Big Five modeling using MLFlow. The trained models can be found as `.joblib` and  `.pickle` files, as well as in the artifact storage of the MLflow database and file base.
 - `results`: Documentation of the results of the project, including classification scores and response generation.
 
 ### `pipeline` 
