@@ -2,6 +2,26 @@
 
 This repository serves as an archive for the implementation of my Master's thesis, focusing on the creation of a chatbot that adapts its Large Language Model-, and transfer learning-based responses according to the Big Five personality traits of users. The project involves a variety of experiments and implementations and their respective deployments. The repository is structured into various folders, each containing different components of the project. For a more detailed description of each folder, please see below.
 
+
+## Software Reproduction Guide
+
+### Prerequisites
+
+A foundational comprehension of Git, web services, Docker, Kubernetes, and Python is requisite. Moreover, a Linux or Cloud Server equipped with a functional Kubernetes cluster is mandatory.
+
+### Steps
+
+1. Initiate the process by cloning or forking the repository of the chatbot framework system, available at: [rasax-deployment-guide](https://github.com/Joelx/rasax-deployment-guide)
+2. Adhere to the installation instructions encapsulated within the aforementioned repository.
+3. Proceed to clone or fork the pipeline repository, available at: [PersonalityAdaptiveChatbot](https://github.com/Joelx/PersonalityAdaptiveChatbot)
+4. Construct Dockerfiles from the subsequent directories: `pipeline/main`, `pipeline/mlflow`, and `pipeline/pipelinedashboard`.
+5. Create distinct Kubernetes secrets, such as OpenAI keys, corresponding to the secrets located in `pipeline/main/k8s-pipeline.yaml`.
+6. Implement the `k8s-*.yaml` Kubernetes configuration files located in the same directories as described in the fourth step.
+7. Incorporate the content of the `websites`, and `actions` folders, in addition to the Rasa configuration files from the `PersonalityAdaptiveChatbot` repository into the chatbot system established in the first step.
+
+Please note that dependent on the specifics of the target system, individualized adjustments may be necessitated. Nevertheless, with accurate reproduction, all models and artifacts should be restored and rendered operational.
+
+
 ## Repository Structure
 
 ### `actions` 
